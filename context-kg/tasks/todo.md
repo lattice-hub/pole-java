@@ -88,3 +88,17 @@
 
 - Maven namespace 与 Java package 分离：前者允许连字符，后者使用合法且稳定的 `io.github.latticehub.client`，不重复加入 `pole` 层级。
 - Temurin 17 与 Maven 3.9.16 下 `mvn -B clean verify` 通过，21 个测试中 20 个通过、1 个显式跳过的 live Sidecar 测试。
+
+## 2026-08-03 Maven Central 自动发布
+
+- [x] 配置 Central Portal、GPG 与 GitHub Release 工作流
+- [x] 验证 release profile、版本 gate 与候选产物
+- [x] 提交并推送发布配置
+
+### Review
+
+- Release 发布时从 `vX.Y.Z` 标签设置 Maven 版本，使用 `maven-gpg-plugin`
+  签名，并由 Central Portal Maven Plugin 自动发布及等待 `published` 状态。
+- Temurin 17.0.20、Maven 3.9.11 下 `mvn -Prelease -Dgpg.skip=true clean verify`
+  通过，21 个测试中 20 个通过、1 个 live Sidecar 测试跳过；sources、javadoc
+  与主 JAR 均生成成功。
