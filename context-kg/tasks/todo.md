@@ -44,3 +44,35 @@
 - CI 矩阵覆盖 Temurin Java 17/21；正式包仍为 `0.1.0-SNAPSHOT`，未发布。
 - 最终审查修复非 ASCII IPv4 差分、checksum/VERSION 假阳性，并为手动发布检查
   增加 SNAPSHOT gate。
+
+## 2026-08-02 Sidecar Bootstrap v2 改造
+
+- [x] 检查仓库约束、工作区状态与旧 API 影响范围
+- [x] 核对 specification bootstrap proto 与 gRPC Java UDS 官方接入方式
+- [x] vendoring `bootstrap.proto` 并配置 protobuf/gRPC 代码生成
+- [x] 用不可变 `TargetService` 替换旧 `TargetEnvelope`
+- [x] 实现 UDS `OpenSession`、首帧校验与原子 listener 快照
+- [x] 实现断流失效、指数退避重连与有界初始化超时
+- [x] 暴露线程安全的协议 listener 地址读取 API
+- [x] 更新契约资产、README 与完整测试
+- [x] 运行针对性测试和完整 Maven 验证
+
+## 2026-08-02 Sidecar Bootstrap v2 Review
+
+- 删除旧 `TargetEnvelope` 与固定 Sidecar HTTP endpoint，公共目标模型收敛为仅含
+  `namespace/service` 的不可变 `TargetService`。
+- `TargetServiceMetadata` 只写入 `latticehub-target-namespace/service`，保留
+  Unicode scalar、`Cc`、White_Space 与 canonical UTF-8 `%HH` 规则。
+- `SidecarBootstrapClient` 通过 Java 17 `UnixDomainSocketAddress`、gRPC Java
+  `grpc-netty-shaded` NIO domain socket channel 建立 `OpenSession` 长连接，不依赖
+  Epoll/KQueue 平台 native classifier。
+- 首帧必须完整包含 HTTP、gRPC、Dubbo、Thrift 四种 listener；快照通过
+  `AtomicReference` 原子安装，断流或关闭时立即失效，后台有界指数退避重连。
+- SDK 主代码未出现 `15001..15004`，listener 地址只来自 Sidecar 首帧。
+- vendored proto、README、schema 和 conformance 与 specification
+  `v0.1.0-ALPHA.39` 逐字一致，`SHA256SUMS` 全部校验通过；`VERSION` 已固定发布
+  tag 与不可变 commit。
+- Temurin JDK 17.0.19、Maven 3.9.16 下针对性测试和 `mvn -B clean verify`
+  均通过，共 20 个测试；包含真实 macOS ARM64 UDS gRPC 集成测试。
+- `mvn dependency:tree -Dscope=runtime` 确认新增 gRPC/Protobuf 运行时依赖；核心包不再
+  是零运行时依赖，这与 UDS bootstrap 职责一致。
