@@ -1,12 +1,12 @@
-package io.pole.client;
+package io.github.latticehub.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.Listener;
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ListenerSnapshot;
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.Protocol;
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.Listener;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ListenerSnapshot;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.Protocol;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

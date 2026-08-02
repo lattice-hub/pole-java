@@ -8,3 +8,4 @@
   listener，并携带仅含 namespace/service 的 target service 元信息。
 - listener 端口不能内置在 SDK；UDS 断联后必须立即使快照失效，防止继续使用
   已被其他进程占用的旧端口。
+- Java Thin SDK 的公共 package 固定为 `io.github.latticehub.client`；不要在 `latticehub` 与 `client` 之间重复加入产品名 `pole`。Maven Central 的 `groupId` 独立使用已验证 namespace `io.github.lattice-hub`。

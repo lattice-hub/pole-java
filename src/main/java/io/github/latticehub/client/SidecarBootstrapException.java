@@ -1,4 +1,4 @@
-package io.pole.client;
+package io.github.latticehub.client;
 
 public final class SidecarBootstrapException extends IllegalStateException {
     public SidecarBootstrapException(String message) {

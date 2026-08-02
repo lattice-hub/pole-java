@@ -69,10 +69,22 @@
 - 首帧必须完整包含 HTTP、gRPC、Dubbo、Thrift 四种 listener；快照通过
   `AtomicReference` 原子安装，断流或关闭时立即失效，后台有界指数退避重连。
 - SDK 主代码未出现 `15001..15004`，listener 地址只来自 Sidecar 首帧。
-- vendored proto、README、schema 和 conformance 与 specification
-  `v0.1.0-ALPHA.39` 逐字一致，`SHA256SUMS` 全部校验通过；`VERSION` 已固定发布
-  tag 与不可变 commit。
+- vendored proto、README、schema 和 conformance 原先与 specification
+  `v0.1.0-ALPHA.39` 一致；Java namespace 迁移后已固定到尚未发布的 `develop`
+  提交 `776f590d1474c51847af75b44522953874097e55`。
 - Temurin JDK 17.0.19、Maven 3.9.16 下针对性测试和 `mvn -B clean verify`
   均通过，共 20 个测试；包含真实 macOS ARM64 UDS gRPC 集成测试。
 - `mvn dependency:tree -Dscope=runtime` 确认新增 gRPC/Protobuf 运行时依赖；核心包不再
   是零运行时依赖，这与 UDS bootstrap 职责一致。
+
+## 2026-08-02 Java Namespace 迁移
+
+- [x] Maven `groupId` 调整为已验证 namespace `io.github.lattice-hub`。
+- [x] Thin SDK 公共 package 调整为 `io.github.latticehub.client`。
+- [x] Specification 生成类型引用迁移到新的 Java package。
+- [x] 完成 Maven 全量验证与跨仓契约校验。
+
+### Review
+
+- Maven namespace 与 Java package 分离：前者允许连字符，后者使用合法且稳定的 `io.github.latticehub.client`，不重复加入 `pole` 层级。
+- Temurin 17 与 Maven 3.9.16 下 `mvn -B clean verify` 通过，21 个测试中 20 个通过、1 个显式跳过的 live Sidecar 测试。

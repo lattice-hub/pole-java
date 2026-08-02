@@ -1,4 +1,4 @@
-package io.pole.client;
+package io.github.latticehub.client;
 
 public enum SidecarProtocol {
     HTTP,

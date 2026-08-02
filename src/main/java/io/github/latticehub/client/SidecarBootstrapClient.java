@@ -1,8 +1,8 @@
-package io.pole.client;
+package io.github.latticehub.client;
 
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ClientHello;
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.Protocol;
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ClientHello;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.Protocol;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.time.Duration;

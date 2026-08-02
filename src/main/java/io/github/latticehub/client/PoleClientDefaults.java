@@ -1,4 +1,4 @@
-package io.pole.client;
+package io.github.latticehub.client;
 
 import java.nio.file.Path;
 import java.util.Map;

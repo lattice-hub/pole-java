@@ -40,8 +40,8 @@ Epoll/KQueue native transport，也没有平台 classifier 运行时依赖。Win
 业务 listener 端口。
 
 ```java
-import io.pole.client.SidecarBootstrapClient;
-import io.pole.client.SidecarProtocol;
+import io.github.latticehub.client.SidecarBootstrapClient;
+import io.github.latticehub.client.SidecarProtocol;
 import java.net.InetSocketAddress;
 
 try (SidecarBootstrapClient sidecar = SidecarBootstrapClient.connect()) {
@@ -70,8 +70,8 @@ Sidecar 必须把完整 listener 表作为 `OpenSession` 首帧发送。SDK 验�
 ## Target Service
 
 ```java
-import io.pole.client.TargetService;
-import io.pole.client.TargetServiceMetadata;
+import io.github.latticehub.client.TargetService;
+import io.github.latticehub.client.TargetServiceMetadata;
 import java.util.Map;
 
 TargetService target = TargetService.builder()

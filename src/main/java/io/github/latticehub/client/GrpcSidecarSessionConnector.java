@@ -1,11 +1,11 @@
-package io.pole.client;
+package io.github.latticehub.client;
 
 import io.grpc.ManagedChannel;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ClientHello;
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
-import io.pole.specification.api.v1.sidecar.SidecarSessionServiceGrpc;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ClientHello;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarSessionServiceGrpc;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
 import io.grpc.netty.shaded.io.netty.channel.socket.nio.NioDomainSocketChannel;

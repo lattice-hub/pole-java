@@ -1,4 +1,4 @@
-package io.pole.client;
+package io.github.latticehub.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,9 +8,9 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
 import io.grpc.netty.shaded.io.netty.channel.socket.nio.NioServerDomainSocketChannel;
 import io.grpc.stub.StreamObserver;
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ClientHello;
-import io.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
-import io.pole.specification.api.v1.sidecar.SidecarSessionServiceGrpc;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ClientHello;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarSessionServiceGrpc;
 import java.net.UnixDomainSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;

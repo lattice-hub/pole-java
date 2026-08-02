@@ -1,4 +1,4 @@
-package io.pole.client;
+package io.github.latticehub.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
