@@ -5,6 +5,10 @@ Central。
 
 ## Snapshot
 
+先在 [Central Publisher Portal](https://central.sonatype.com/) 对命名空间
+`io.github.lattice-hub` 执行 **Enable SNAPSHOTs**（Namespaces → 下拉菜单），
+否则上传会返回 403。
+
 保持 `pom.xml` 版本为 `*-SNAPSHOT`，在 Actions 手动运行
 `发布 Snapshot 到 Maven Central`（`workflow_dispatch`）。不会创建 GitHub
 Release，也不会改写版本号。
