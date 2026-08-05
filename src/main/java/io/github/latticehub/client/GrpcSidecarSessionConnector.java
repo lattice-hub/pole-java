@@ -3,6 +3,7 @@ package io.github.latticehub.client;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
+import io.grpc.stub.StreamObserver;
 import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ClientEvent;
 import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ClientHello;
 import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
@@ -50,14 +51,11 @@ final class GrpcSidecarSessionConnector implements SidecarSessionConnector {
         CountDownLatch terminated = new CountDownLatch(1);
         AtomicReference<Throwable> failure = new AtomicReference<>();
         try {
-            SidecarSessionServiceGrpc.newStub(channel).openControlSession(
-                    new ClientResponseObserver<ClientEvent, SidecarEvent>() {
+            StreamObserver<ClientEvent> requestStream = SidecarSessionServiceGrpc.newStub(channel)
+                    .openControlSession(new ClientResponseObserver<ClientEvent, SidecarEvent>() {
                         @Override
-                        public void beforeStart(
-                                ClientCallStreamObserver<ClientEvent> requestStream) {
-                            activeCall.set(requestStream);
-                            requestStream.onNext(ClientEvent.newBuilder().setHello(hello).build());
-                            sessionConsumer.accept(new GrpcControlSession(requestStream));
+                        public void beforeStart(ClientCallStreamObserver<ClientEvent> call) {
+                            activeCall.set(call);
                         }
 
                         @Override
@@ -85,6 +83,8 @@ final class GrpcSidecarSessionConnector implements SidecarSessionConnector {
                             terminated.countDown();
                         }
                     });
+            requestStream.onNext(ClientEvent.newBuilder().setHello(hello).build());
+            sessionConsumer.accept(new GrpcControlSession(requestStream));
             terminated.await();
             Throwable cause = failure.get();
             if (cause instanceof RuntimeException runtimeException) {
@@ -125,9 +125,9 @@ final class GrpcSidecarSessionConnector implements SidecarSessionConnector {
     }
 
     private static final class GrpcControlSession implements SidecarControlSession {
-        private final ClientCallStreamObserver<ClientEvent> requestStream;
+        private final StreamObserver<ClientEvent> requestStream;
 
-        private GrpcControlSession(ClientCallStreamObserver<ClientEvent> requestStream) {
+        private GrpcControlSession(StreamObserver<ClientEvent> requestStream) {
             this.requestStream = requestStream;
         }
 
