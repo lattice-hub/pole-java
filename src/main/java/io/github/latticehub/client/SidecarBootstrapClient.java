@@ -1,15 +1,20 @@
 package io.github.latticehub.client;
 
 import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.ClientHello;
+import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.LocalServiceStatus;
 import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.Protocol;
 import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapProto.SidecarEvent;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class SidecarBootstrapClient implements AutoCloseable {
@@ -25,7 +30,12 @@ public final class SidecarBootstrapClient implements AutoCloseable {
     private final AtomicReference<SidecarListenerSnapshot> listenerSnapshot =
             new AtomicReference<>();
     private final AtomicReference<Throwable> lastFailure = new AtomicReference<>();
+    private final AtomicReference<SidecarControlSession> controlSession = new AtomicReference<>();
+    private final AtomicLong registrationSequence = new AtomicLong();
     private final Object snapshotMonitor = new Object();
+    private final Object registrationMonitor = new Object();
+    private final Map<String, LocalServiceRegistration> desiredRegistrations = new LinkedHashMap<>();
+    private final Map<String, LocalServiceRegistrationStatus> registrationStatuses = new HashMap<>();
     private final Thread sessionThread;
 
     private SidecarBootstrapClient(Builder builder, SidecarSessionConnector connector) {
@@ -55,12 +65,74 @@ public final class SidecarBootstrapClient implements AutoCloseable {
 
     public InetSocketAddress listenerAddress(SidecarProtocol protocol) {
         Objects.requireNonNull(protocol, "protocol must not be null");
-        SidecarListenerSnapshot snapshot = requireSnapshot();
-        return snapshot.address(protocol);
+        return requireSnapshot().address(protocol);
     }
 
     public Map<SidecarProtocol, InetSocketAddress> listenerAddresses() {
         return requireSnapshot().addresses();
+    }
+
+    public LocalServiceRegistration registerLocalService(
+            String namespace,
+            String service,
+            SidecarProtocol protocol,
+            int localPort) {
+        return registerLocalService(
+                "sdk-local-service-" + registrationSequence.incrementAndGet(),
+                namespace,
+                service,
+                protocol,
+                localPort);
+    }
+
+    public LocalServiceRegistration registerLocalService(
+            String registrationId,
+            String namespace,
+            String service,
+            SidecarProtocol protocol,
+            int localPort) {
+        LocalServiceRegistration registration = LocalServiceRegistration.of(
+                registrationId,
+                namespace,
+                service,
+                protocol,
+                localPort);
+        synchronized (registrationMonitor) {
+            requireOpen();
+            if (desiredRegistrations.containsKey(registration.getRegistrationId())) {
+                throw new IllegalArgumentException(
+                        "registrationId is already registered: " + registration.getRegistrationId());
+            }
+            desiredRegistrations.put(registration.getRegistrationId(), registration);
+            registrationStatuses.remove(registration.getRegistrationId());
+            SidecarControlSession session = controlSession.get();
+            if (session != null) {
+                session.register(registration);
+            }
+        }
+        return registration;
+    }
+
+    public boolean unregisterLocalService(String registrationId) {
+        LocalServiceRegistration.unregistrationEvent(registrationId);
+        synchronized (registrationMonitor) {
+            requireOpen();
+            if (desiredRegistrations.remove(registrationId) == null) {
+                return false;
+            }
+            SidecarControlSession session = controlSession.get();
+            if (session != null) {
+                session.unregister(registrationId);
+            }
+            return true;
+        }
+    }
+
+    public Optional<LocalServiceRegistrationStatus> localServiceStatus(String registrationId) {
+        LocalServiceRegistration.unregistrationEvent(registrationId);
+        synchronized (registrationMonitor) {
+            return Optional.ofNullable(registrationStatuses.get(registrationId));
+        }
     }
 
     @Override
@@ -69,6 +141,10 @@ public final class SidecarBootstrapClient implements AutoCloseable {
             return;
         }
         listenerSnapshot.set(null);
+        synchronized (registrationMonitor) {
+            controlSession.set(null);
+            registrationStatuses.clear();
+        }
         signalSnapshotChange();
         connector.close();
         sessionThread.interrupt();
@@ -115,12 +191,12 @@ public final class SidecarBootstrapClient implements AutoCloseable {
             AtomicBoolean firstEvent = new AtomicBoolean(true);
             AtomicBoolean installedSnapshot = new AtomicBoolean();
             try {
-                connector.openSession(clientHello(), event -> {
-                    installFirstSnapshot(firstEvent, event);
-                    installedSnapshot.set(true);
-                });
+                connector.openControlSession(
+                        clientHello(),
+                        event -> handleEvent(firstEvent, installedSnapshot, event),
+                        this::activateControlSession);
                 lastFailure.set(new SidecarBootstrapException(
-                        "Sidecar completed OpenSession unexpectedly"));
+                        "Sidecar completed OpenControlSession unexpectedly"));
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 if (!closed.get()) {
@@ -135,7 +211,11 @@ public final class SidecarBootstrapClient implements AutoCloseable {
                     lastFailure.set(exception);
                 }
             } finally {
+                controlSession.set(null);
                 listenerSnapshot.set(null);
+                synchronized (registrationMonitor) {
+                    registrationStatuses.clear();
+                }
                 signalSnapshotChange();
             }
 
@@ -155,14 +235,37 @@ public final class SidecarBootstrapClient implements AutoCloseable {
         }
     }
 
-    private void installFirstSnapshot(AtomicBoolean firstEvent, SidecarEvent event) {
-        if (!firstEvent.compareAndSet(true, false)) {
-            throw new SidecarBootstrapException(
-                    "Sidecar must send exactly one listener snapshot per session");
+    private void activateControlSession(SidecarControlSession session) {
+        synchronized (registrationMonitor) {
+            if (closed.get()) {
+                session.close();
+                return;
+            }
+            controlSession.set(session);
+            desiredRegistrations.values().forEach(session::register);
         }
-        listenerSnapshot.set(SidecarListenerSnapshot.fromEvent(event));
-        lastFailure.set(null);
-        signalSnapshotChange();
+    }
+
+    private void handleEvent(
+            AtomicBoolean firstEvent,
+            AtomicBoolean installedSnapshot,
+            SidecarEvent event) {
+        if (firstEvent.compareAndSet(true, false)) {
+            listenerSnapshot.set(SidecarListenerSnapshot.fromEvent(event));
+            installedSnapshot.set(true);
+            lastFailure.set(null);
+            signalSnapshotChange();
+            return;
+        }
+        LocalServiceStatus status = event.getLocalServiceStatus();
+        if (status == null) {
+            throw new SidecarBootstrapException(
+                    "Sidecar control session events after the snapshot must be local service status");
+        }
+        LocalServiceRegistrationStatus localStatus = LocalServiceRegistrationStatus.fromProto(status);
+        synchronized (registrationMonitor) {
+            registrationStatuses.put(localStatus.getRegistrationId(), localStatus);
+        }
     }
 
     private SidecarListenerSnapshot requireSnapshot() {
@@ -172,6 +275,12 @@ public final class SidecarBootstrapClient implements AutoCloseable {
                     "Sidecar listener snapshot is unavailable; business requests must fail fast");
         }
         return snapshot;
+    }
+
+    private void requireOpen() {
+        if (closed.get()) {
+            throw new IllegalStateException("Sidecar bootstrap client is closed");
+        }
     }
 
     private void signalSnapshotChange() {
@@ -214,9 +323,7 @@ public final class SidecarBootstrapClient implements AutoCloseable {
         }
 
         public Builder initializationTimeout(Duration initializationTimeout) {
-            this.initializationTimeout = requirePositive(
-                    "initializationTimeout",
-                    initializationTimeout);
+            this.initializationTimeout = requirePositive("initializationTimeout", initializationTimeout);
             return this;
         }
 

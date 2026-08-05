@@ -102,3 +102,18 @@
 - Temurin 17.0.20、Maven 3.9.11 下 `mvn -Prelease -Dgpg.skip=true clean verify`
   通过，21 个测试中 20 个通过、1 个 live Sidecar 测试跳过；sources、javadoc
   与主 JAR 均生成成功。
+
+## 2026-08-06 OpenControlSession 迁移
+
+- [x] 核对 `OpenControlSession` 权威契约与旧会话边界
+- [x] 更新 vendored proto 与 Java 生成代码
+- [x] 实现注册 API、状态处理与重连重放
+- [x] 更新 README 和单元/UDS 集成测试
+- [x] 运行可用校验并提交本地变更
+
+### Review
+
+- 契约引用 specification `develop` 集成提交 `2642bc29c0a512f4da84ec4eb862b1e1ceee9833`。
+- Java 主源码已按 Maven 缓存的 protobuf/gRPC 版本生成验证命令准备；本机缺少 Java
+  Runtime，gRPC 代码生成插件无法启动，因而 Maven/JUnit 未执行。
+- `protoc` descriptor 校验、vendored checksum 与 diff 空白检查通过。
