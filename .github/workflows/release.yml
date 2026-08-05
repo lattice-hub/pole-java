@@ -32,12 +32,28 @@ jobs:
             echo "发布标签必须使用 vX.Y.Z 或 SemVer 预发布格式，当前为 $RELEASE_TAG"
             exit 1
           fi
+
           version="${RELEASE_TAG#v}"
+
+          # ALPHA 预发布 tag：与 tag 的 X.Y.Z 对齐，Maven 坐标自动改为 SNAPSHOT
+          # 例：v0.1.0-ALPHA.46 → 0.1.0-SNAPSHOT
+          if [[ "$version" =~ [Aa][Ll][Pp][Hh][Aa] ]]; then
+            if [[ ! "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+              echo "无法从 ALPHA 标签解析主版本：$version"
+              exit 1
+            fi
+            version="${BASH_REMATCH[1]}-SNAPSHOT"
+            echo "检测到 ALPHA tag ($RELEASE_TAG)，发布为 Maven SNAPSHOT：$version"
+          else
+            echo "发布版本与 tag 对齐：$version"
+          fi
+
           mvn --batch-mode org.codehaus.mojo:versions-maven-plugin:2.19.1:set \
             -DnewVersion="$version" \
             -DgenerateBackupPoms=false
           actual="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
           test "$actual" = "$version"
+          echo "project.version=$actual"
       - name: 验证并发布
         run: mvn --batch-mode --no-transfer-progress -Prelease clean deploy
         env:
