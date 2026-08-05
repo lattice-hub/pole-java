@@ -5,7 +5,10 @@ import io.github.latticehub.pole.specification.api.v1.sidecar.SidecarBootstrapPr
 import java.util.function.Consumer;
 
 interface SidecarSessionConnector extends AutoCloseable {
-    void openSession(ClientHello hello, Consumer<SidecarEvent> eventConsumer) throws Exception;
+    void openControlSession(
+            ClientHello hello,
+            Consumer<SidecarEvent> eventConsumer,
+            Consumer<SidecarControlSession> sessionConsumer) throws Exception;
 
     @Override
     void close();
