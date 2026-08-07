@@ -10,3 +10,5 @@
   已被其他进程占用的旧端口。
 - Java Thin SDK 的公共 package 固定为 `io.github.latticehub.client`；不要在 `latticehub` 与 `client` 之间重复加入产品名 `pole`。Maven Central 的 `groupId` 独立使用已验证 namespace `io.github.lattice-hub`。
 - Java gRPC 双向流不能在 `ClientResponseObserver.beforeStart` 中调用 `onNext`；该回调发生在底层 call 完成 start 之前。应先从异步 Stub 获取请求 `StreamObserver`，再依次发送 `ClientHello` 和 desired registrations。
+- 当仓库同时承载 Java Thin SDK、framework adapter 与 Java Agent 时，仓库命名使用 `pole-java`，不要继续用只表达客户端核心包的 `pole-client-java`；各能力仍拆成独立 Maven 模块和 artifact。
+- Spring adapter 与 Java Agent 的兼容范围必须同时覆盖 Spring Boot 2、3、4；共享行为下沉到稳定 SPI，按不兼容的大版本拆分安装模块，不能只实现 Boot 3。

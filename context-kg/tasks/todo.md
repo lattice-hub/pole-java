@@ -1,5 +1,61 @@
 # Java Thin SDK
 
+## 2026-08-07 pole-java Monorepo 重组
+
+- [x] 核对当前单模块依赖与未提交改动
+- [x] 将现有核心迁入 `pole-client-java` reactor 模块并保持单 JAR
+- [x] 建立 adapters 与 agent 聚合边界
+- [x] 同步仓库命名、文档和发布流水线
+- [x] 运行模块定向测试与全量验证
+- [x] 完成代码复核并记录 Review
+
+### Review
+
+- GitHub 仓库已从 `lattice-hub/pole-client-java` 改名为 `lattice-hub/pole-java`，
+  本地目录和 `origin` 同步更新；根 POM 改为 `pole-java-parent` reactor。
+- 现有源码、proto 与测试迁入 `pole-client-java/` 模块，Maven 坐标和
+  `io.github.latticehub.client` package 保持不变。复核阶段放弃 API/Sidecar 双 JAR
+  方案，避免 JPMS/module-path split-package。
+- 新增 `pole-java-bom`、`adapters/` 与 `agent/` 聚合边界。adapter 是唯一请求级
+  行为实现，Agent 仅负责启动期识别、隔离、插件选择和自动装配；空边界不宣称已有实现。
+- CI 同时校验 bootstrap、target-service 与 TrafficContext 两组 SHA256，发布检查上传
+  reactor JAR，release workflow 对全部模块统一改版本。
+- `maven:3.9.11-eclipse-temurin-17` 下 `mvn clean verify` 与
+  `mvn -Prelease -Dgpg.skip=true clean verify` 均通过：38 项测试、0 失败、1 项 live
+  Sidecar 测试跳过；两组契约校验和、runtime dependency tree、JAR 内容和
+  `git diff --check` 均已验证。
+
+## 2026-08-06 TrafficContext v1 传播
+
+- [x] 核对现有 metadata 编码与 contract 资产路径
+- [x] 先补 TrafficContext 编解码与 scope 测试
+- [x] 实现 native storage 与可选 OTel bridge
+- [x] 接入 TargetService metadata 编码与下游 baggage 保留
+- [x] 同步 v1 contract 与 README
+- [x] 完成最终 Maven 全量验证
+
+### Review
+
+- 已实现 `TrafficContext`、W3C Baggage codec、`ThreadLocal` scope 和反射式 optional
+  OTel Context/Baggage bridge；标准 W3C Baggage Propagator 可发送四个保留成员，领域值缺失时
+  会从合法 OTel Baggage 恢复；`TargetServiceMetadata` 在同一装配点注入 target 与 baggage。
+- 已同步当前 `specification/thin-sdk/traffic-context/v1` 的四项资产，并补充 canonical、
+  OWS、空外部值、非法 foreign member、version-only 与大小写前缀回归测试。
+- 根会话冒烟复验修正空 `TrafficContext` 注入：只清理旧保留成员，不生成 version-only carrier。
+- 已补 `empty_context_cleans_reserved_prefix` 回归、OTel Baggage inject/recover，以及
+  `wrap(Runnable/Callable/Executor)` 在线程池和 `CompletableFuture` 中显式捕获、恢复和清理的测试。
+- OTel attach 现在枚举并删除全部精确小写 `latticehub.traffic.*`，恢复时拒绝未知保留键；
+  空捕获的 wrapper 也建立清空 scope，屏蔽并在结束后恢复执行线程残留的 native/OTel context。
+- Java 原生测试逐项执行 vendored `valid`、`sidecar_receive.valid` 与
+  `sidecar_receive.invalid`。
+- 新增继承 `IllegalArgumentException` 的 `TrafficContextException` 与公开
+  `TrafficContextDiagnostic` 枚举；构造和 Baggage 校验均返回稳定 `getCode()`，conformance
+  测试直接精确比较机器码，不再根据异常消息推断。
+- `maven:3.9.11-eclipse-temurin-17` 容器执行 `mvn -B test` 通过：37 项测试、0 失败、
+  1 个需要真实 Sidecar 的测试跳过；`git diff --check` 与四项资产逐字比对通过。
+- 最终根会话复跑 Maven 全量测试确认 37 项通过、1 个 live Sidecar 测试跳过；先前容器下载
+  超时和 OTel Baggage 无序输出断言均已消除，不再保留“完整 Maven 未验证”的旧边界。
+
 - [x] 核对 Thin SDK 契约与一致性向量
 - [x] 创建 Maven/Java 17 工程
 - [x] 实现不可变 `TargetEnvelope`
@@ -117,3 +173,30 @@
 - Java 主源码已按 Maven 缓存的 protobuf/gRPC 版本生成验证命令准备；本机缺少 Java
   Runtime，gRPC 代码生成插件无法启动，因而 Maven/JUnit 未执行。
 - `protoc` descriptor 校验、vendored checksum 与 diff 空白检查通过。
+
+## 2026-08-07 Spring Boot Adapters 与 Java Agent
+
+- [x] 定义共享 Spring 请求适配行为与安装 SPI
+- [x] 实现 Spring Boot 2.7 / 3.5 / 4.1 安装模块
+- [x] 实现启动期自动装配的单一 Java Agent JAR
+- [x] 增加三代 Spring Boot 运行时集成测试
+- [x] 更新 BOM、README 与发布产物说明
+- [x] 执行 JDK 17 全量构建和产物复核
+
+### Review
+
+- JDK 17 作为 parent compiler release 和全部模块的最低运行基线；版本矩阵固定为
+  Boot 2.7.18 / Spring 5.3.31 / Cloud 3.1.8、Boot 3.5.16 / Spring 6.2.19 /
+  Cloud 4.3.0、Boot 4.1.0 / Spring 7.0.8 / Cloud 5.0.2。
+- `pole-spring-common` 统一实现 blocking/reactive Spring Cloud LoadBalancer 请求改写、
+  target Header 与 W3C Baggage 注入、Servlet/WebFlux 入站提取、TaskDecorator 和 Reactor
+  异步传播；三代 Boot 模块只承担各自自动配置与 `javax`/`jakarta` 适配。
+- `pole-java-agent` 是 28,755,589 字节的单一 shaded JAR，仅在 JVM 启动期增强
+  `SpringApplication` 构造，按 Implementation-Version 选择对应 initializer；adapter payload
+  使用隔离 classloader 加载，Agent 不复制请求级治理逻辑，也不支持动态 attach。
+- Temurin JDK 17、Maven 3.9.11 容器下 `mvn -B clean verify` 与
+  `mvn -B -Prelease -Dgpg.skip=true verify` 均通过。reactor 共执行 47 项测试，0 失败，
+  1 项需要真实 Sidecar 的 live 测试跳过。
+- 三个不依赖 adapter 的独立 Spring Boot 应用均通过 `-javaagent` 黑盒启动并输出
+  `POLE_AGENT_OK:boot2`、`POLE_AGENT_OK:boot3`、`POLE_AGENT_OK:boot4`。Agent manifest、
+  payload、gRPC service provider、无自动配置资源泄漏和 `git diff --check` 均已复核。

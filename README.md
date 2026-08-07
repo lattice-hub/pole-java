@@ -1,6 +1,10 @@
-# Pole Java Thin SDK
+# Pole Java
 
-`pole-client-java` 是 Java 17 的框架无关 Thin SDK 核心包。它负责：
+`pole-java` 是 Pole 的 Java 客户端运行时 monorepo，统一承载 Thin SDK 核心、
+framework adapter 与薄 Java Agent。现有 Maven artifact
+`io.github.lattice-hub:pole-client-java` 保持为 Thin SDK 核心入口。
+
+当前已实现的 Thin SDK 负责：
 
 - 通过 `OpenControlSession` gRPC over Unix Domain Socket 与本地 Pole Sidecar 建立长期内部会话；
 - 接收 Sidecar 首帧主动下发的 HTTP、gRPC、Dubbo、Thrift listener 端口；
@@ -8,6 +12,23 @@
 - 向框架 adapter 提供线程安全的本地 listener 地址；
 - 构造仅含 `namespace`、`service` 的不可变 `TargetService`；
 - 生成业务协议使用的 canonical target service 元信息。
+- 传播可选的 `TrafficContext` 流量标签，不以 trace-id 关联灰度。
+
+## 模块
+
+| 模块 | 职责 | 发布状态 |
+| --- | --- | --- |
+| `pole-client-java` | Thin SDK 核心、TrafficContext、UDS 控制会话和本地服务注册 | 已实现 |
+| `pole-java-bom` | Java 模块统一版本管理 | 已实现 |
+| `adapters/pole-spring-common` | Spring Cloud LoadBalancer 共用出站行为 | 已实现 |
+| `adapters/pole-spring-boot-2` | Spring Boot 2.7 / Spring Cloud 2021.0 安装与 Servlet 适配 | 已实现 |
+| `adapters/pole-spring-boot-3` | Spring Boot 3.5 / Spring Cloud 2025.0 安装与 Servlet 适配 | 已实现 |
+| `adapters/pole-spring-boot-4` | Spring Boot 4.1 / Spring Cloud 2025.1 安装与 Servlet 适配 | 已实现 |
+| `agent/` | 启动期识别 Boot 2/3/4 并自动装配对应 adapter | 已实现 |
+
+核心类继续位于同一个 artifact，避免将既有 `io.github.latticehub.client` package
+拆散到多个 JAR。adapter 是请求级行为的唯一实现；Agent 不复制目标身份、TrafficContext 或 Sidecar
+连接逻辑，也不通过逐 RPC 字节码增强重复治理能力。
 
 业务请求不经过 bootstrap gRPC 会话。框架 adapter 应把请求发送到对应协议的
 `127.0.0.1:{listenerPort}`，并注入：
@@ -101,7 +122,58 @@ Map<String, String> metadata = TargetServiceMetadata.encode(target);
 - Dubbo：request Attachment；
 - Thrift：Apache Thrift 官方 HTTP Transport 请求 Header。
 
-当前核心包不包含 Spring、Dubbo、Thrift、HTTP client 或业务 gRPC adapter。
+## TrafficContext
+
+`TrafficContext` 统一承载可选的 `campaign`、`lane`、`bucket` 标签。使用
+`TrafficContext.attach(context)` 安装并在 `Scope.close()` 时恢复上一个上下文；
+`TrafficContext.current()` 在未安装时返回空值。`TargetServiceMetadata.encode` 可接收显式
+`TrafficContext`，显式值优先于 current，并在同一出站装配点更新 `baggage`：旧的
+`latticehub.traffic.*` 成员被覆盖，外部成员继续下游传播；无结果时删除 Header。
+
+`opentelemetry-api` 是 Maven optional 依赖。运行时存在该类库时可调用
+`TrafficContext.tryInstallOpenTelemetryBridge()`，同时把领域上下文及 version、campaign、lane、
+bucket 写入 OTel Context/Baggage，标准 W3C Baggage Propagator 可直接发送；领域值缺失时会从
+合法 OTel Baggage 恢复。缺失 OTel 时核心类仍可加载并使用原生 `ThreadLocal` storage。
+`TrafficContext.wrap(Runnable)`、`wrap(Callable)` 和 `wrap(Executor)` 可显式捕获并在 executor/
+`CompletableFuture` 任务中恢复上下文，任务结束后恢复工作线程原值。此版本不安装 Spring、Dubbo、
+gRPC 或 HTTP 框架自动 hook，也不负责重复 inject。
+
+TrafficContext 构造与 Baggage 编解码失败时抛出 `TrafficContextException`。该异常继续继承
+`IllegalArgumentException` 以保持现有 catch 兼容，并通过 `getCode()` 返回稳定的 conformance
+机器码；`getDiagnostic()` 返回对应的 `TrafficContextDiagnostic` 枚举。
+
+## Spring Boot Adapter
+
+显式依赖按 Spring Boot 主版本选择且只能选择一个：
+
+```xml
+<dependency>
+    <groupId>io.github.lattice-hub</groupId>
+    <artifactId>pole-spring-boot-3</artifactId>
+    <version>${pole.version}</version>
+</dependency>
+```
+
+当前支持矩阵为 Boot `2.7.18`、`3.5.16`、`4.1.0`，统一要求 JDK 17。三代模块注册同一套
+Spring Cloud LoadBalancer request transformer：保留原 path/query，把目的地址改写为 Sidecar
+HTTP listener，并写入 target service Header 与 W3C Baggage。Servlet 入站 Filter 与 WebFlux
+入站 WebFilter 提取 `TrafficContext`，请求结束后恢复原值；非法保留字段返回 HTTP 400。
+`TaskDecorator`、Boot task executor customizer 与 Reactor scheduler hook 负责跨异步边界传播。
+namespace 依次读取 `pole.namespace`、`POD_NAMESPACE`，最后使用 `default`。
+
+## Java Agent
+
+`pole-java-agent` 是包含 Thin SDK、三代安装模块及 Byte Buddy 的单一可执行 Agent JAR：
+
+```shell
+java -javaagent:/opt/pole/pole-java-agent.jar -jar application.jar
+```
+
+Agent 在 `SpringApplication` 加载时识别 Boot 主版本并安装对应 initializer。它不做逐请求字节码
+增强；请求改写、TrafficContext 与 Sidecar 连接仍由和显式依赖完全相同的 adapter 实现。Agent
+必须在 JVM 启动时通过 `-javaagent` 提供，不支持应用启动后的动态 attach。
+
+当前尚未实现 Dubbo、Thrift client 或业务 gRPC adapter。
 
 ## 契约
 
@@ -110,6 +182,7 @@ Map<String, String> metadata = TargetServiceMetadata.encode(target);
 - `api/v1/sidecar/bootstrap.proto`；
 - `thin-sdk/bootstrap/v1/README.md`；
 - `thin-sdk/target-service/v1/README.md`、schema 和 conformance vectors。
+- `thin-sdk/traffic-context/v1/README.md`、schema 和 conformance vectors。
 
 来源状态记录在 [`contract/VERSION`](contract/VERSION)，校验和记录在
 [`contract/SHA256SUMS`](contract/SHA256SUMS)。
@@ -120,5 +193,5 @@ Map<String, String> metadata = TargetServiceMetadata.encode(target);
 mvn clean verify
 ```
 
-测试包含真实 gRPC over UDS 集成、首帧校验、断联失效、重连恢复、初始化超时、
-TargetService 输入校验及 canonical 编码一致性。
+reactor 测试包含真实 gRPC over UDS 集成、首帧校验、断联失效、重连恢复、初始化超时、
+TargetService 输入校验、canonical 编码一致性，以及 Spring Boot 2/3/4 自动配置验证。
