@@ -5,11 +5,19 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.lattice-hub</groupId>
-    <artifactId>pole-client-java</artifactId>
+    <artifactId>pole-java-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>Pole Java Thin SDK</name>
-    <description>Framework-independent Java Thin SDK for Pole Sidecar</description>
-    <url>https://github.com/lattice-hub/pole-client-java</url>
+    <packaging>pom</packaging>
+    <name>Pole Java</name>
+    <description>Pole Java Thin SDK, framework adapters, and Java Agent</description>
+    <url>https://github.com/lattice-hub/pole-java</url>
+
+    <modules>
+        <module>pole-client-java</module>
+        <module>pole-java-bom</module>
+        <module>adapters</module>
+        <module>agent</module>
+    </modules>
 
     <licenses>
         <license>
@@ -29,55 +37,63 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/lattice-hub/pole-client-java.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/lattice-hub/pole-client-java.git</developerConnection>
-        <url>https://github.com/lattice-hub/pole-client-java</url>
+        <connection>scm:git:https://github.com/lattice-hub/pole-java.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/lattice-hub/pole-java.git</developerConnection>
+        <url>https://github.com/lattice-hub/pole-java</url>
         <tag>HEAD</tag>
     </scm>
 
     <properties>
         <grpc.version>1.82.0</grpc.version>
+        <junit.version>5.11.4</junit.version>
         <maven.compiler.release>17</maven.compiler.release>
+        <opentelemetry.version>1.64.0</opentelemetry.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protobuf.version>3.25.8</protobuf.version>
-        <junit.version>5.11.4</junit.version>
+        <spring.boot2.version>2.7.18</spring.boot2.version>
+        <spring.boot3.version>3.5.16</spring.boot3.version>
+        <spring.boot4.version>4.1.0</spring.boot4.version>
+        <spring.cloud2.version>3.1.8</spring.cloud2.version>
+        <spring.cloud3.version>4.3.0</spring.cloud3.version>
+        <spring.cloud4.version>5.0.2</spring.cloud4.version>
+        <byte-buddy.version>1.15.11</byte-buddy.version>
+        <assertj.version>3.26.3</assertj.version>
     </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty-shaded</artifactId>
-            <version>${grpc.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-protobuf</artifactId>
-            <version>${grpc.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-stub</artifactId>
-            <version>${grpc.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.annotation</groupId>
-            <artifactId>javax.annotation-api</artifactId>
-            <version>1.3.2</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.18.2</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>pole-client-java</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>pole-spring-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>pole-spring-boot-2</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>pole-spring-boot-3</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>pole-spring-boot-4</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>pole-java-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <extensions>
@@ -87,34 +103,33 @@
                 <version>1.7.1</version>
             </extension>
         </extensions>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.15.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.5.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.xolstice.maven.plugins</groupId>
+                    <artifactId>protobuf-maven-plugin</artifactId>
+                    <version>0.6.1</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.15.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.2</version>
-            </plugin>
-            <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
-                <artifactId>protobuf-maven-plugin</artifactId>
-                <version>0.6.1</version>
-                <configuration>
-                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
-                    <pluginId>grpc-java</pluginId>
-                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>compile-custom</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -175,6 +190,7 @@
                         <artifactId>central-publishing-maven-plugin</artifactId>
                         <version>0.11.0</version>
                         <extensions>true</extensions>
+                        <inherited>false</inherited>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>

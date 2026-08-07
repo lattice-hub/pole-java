@@ -25,6 +25,6 @@ jobs:
       - run: mvn --batch-mode clean verify
       - uses: actions/upload-artifact@v4
         with:
-          name: pole-client-java-candidate
-          path: target/*.jar
+          name: pole-java-candidate
+          path: "**/target/*.jar"
           if-no-files-found: error

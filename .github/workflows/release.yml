@@ -50,6 +50,7 @@ jobs:
 
           mvn --batch-mode org.codehaus.mojo:versions-maven-plugin:2.19.1:set \
             -DnewVersion="$version" \
+            -DprocessAllModules=true \
             -DgenerateBackupPoms=false
           actual="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
           test "$actual" = "$version"

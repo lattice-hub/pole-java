@@ -25,6 +25,8 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
       - name: 验证契约校验和
-        run: cd contract && sha256sum --check SHA256SUMS
+        run: |
+          (cd contract && sha256sum --check SHA256SUMS)
+          (cd contract/traffic-context/v1 && sha256sum --check SHA256SUMS)
       - name: 测试并打包
         run: mvn --batch-mode clean verify

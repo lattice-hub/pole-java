@@ -1,7 +1,7 @@
 # 发布流程
 
-`发布检查` workflow 只构建候选 JAR 并上传 Actions artifact，不发布到 Maven
-Central。
+`发布检查` workflow 构建整个 `pole-java` reactor，并上传各模块候选 JAR，不发布到
+Maven Central。
 
 先在 [Central Publisher Portal](https://central.sonatype.com/) 对命名空间
 `io.github.lattice-hub` 执行 **Enable SNAPSHOTs**（Namespaces → 下拉菜单），
@@ -35,3 +35,7 @@ Central。
 ## Release 前检查
 
 正式非 ALPHA 发布前确认契约 tag、Central namespace、签名和凭据。
+
+所有可发布模块使用统一版本。`pole-client-java` 保持 Thin SDK 核心入口，Spring Boot 2/3/4
+adapter 与 `pole-java-agent` 均由 `pole-java-bom` 管理版本；`adapters/` 仅作为聚合 POM，
+`pole-java-agent` 发布为无外部运行时依赖的 shaded JAR。
