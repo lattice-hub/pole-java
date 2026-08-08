@@ -23,16 +23,103 @@ import java.util.jar.JarOutputStream;
 final class DefaultPoleAgentContext implements PoleAgentContext {
     private final Instrumentation instrumentation;
     private final URI distributionLocation;
+    private final List<JarFile> systemPayloadJars = new java.util.ArrayList<>();
     private final Map<ClassLoader, Map<String, WeakReference<PayloadClassLoader>>> payloadLoaders = new WeakHashMap<>();
 
-    DefaultPoleAgentContext(Instrumentation instrumentation) {
+    DefaultPoleAgentContext(Instrumentation instrumentation, URI distributionLocation) {
         this.instrumentation = Objects.requireNonNull(instrumentation, "instrumentation");
-        this.distributionLocation = sourceLocation();
+        this.distributionLocation = Objects.requireNonNull(distributionLocation, "distributionLocation");
     }
 
     @Override
     public Instrumentation instrumentation() {
         return instrumentation;
+    }
+
+    @Override
+    public void appendPluginPayloadToSystemClassLoader(Collection<String> packages) throws IOException {
+        List<String> prefixes = classEntryPrefixes(packages);
+        Path source = Path.of(distributionLocation);
+        if (!Files.isRegularFile(source)) {
+            throw new IOException("Pole Agent plugin payload must come from a JAR: " + source);
+        }
+        Path payloadJar = Files.createTempFile("pole-agent-system-payload-", ".jar");
+        payloadJar.toFile().deleteOnExit();
+        try (JarFile pluginJar = new JarFile(source.toFile());
+             JarOutputStream output = new JarOutputStream(Files.newOutputStream(payloadJar))) {
+            var entries = pluginJar.entries();
+            while (entries.hasMoreElements()) {
+                JarEntry entry = entries.nextElement();
+                if (entry.isDirectory() || !includeSystemPayloadEntry(entry.getName(), prefixes)) {
+                    continue;
+                }
+                output.putNextEntry(new JarEntry(entry.getName()));
+                try (var input = pluginJar.getInputStream(entry)) {
+                    input.transferTo(output);
+                }
+                output.closeEntry();
+            }
+        }
+        JarFile opened = new JarFile(payloadJar.toFile());
+        systemPayloadJars.add(opened);
+        instrumentation.appendToSystemClassLoaderSearch(opened);
+    }
+
+    @Override
+    public Map<String, byte[]> pluginClassBytes(Collection<String> packages) throws IOException {
+        List<String> prefixes = classEntryPrefixes(packages);
+        Path source = Path.of(distributionLocation);
+        LinkedHashMap<String, byte[]> classes = new LinkedHashMap<>();
+        if (Files.isDirectory(source)) {
+            for (String prefix : prefixes) {
+                Path root = source.resolve(prefix);
+                if (!Files.exists(root)) {
+                    continue;
+                }
+                try (var files = Files.walk(root)) {
+                    for (Path file : files.filter(path -> path.toString().endsWith(".class")).toList()) {
+                        String className = source.relativize(file).toString()
+                                .replace(source.getFileSystem().getSeparator(), ".")
+                                .replaceAll("\\.class$", "");
+                        classes.put(className, Files.readAllBytes(file));
+                    }
+                }
+            }
+        } else {
+            try (JarFile jar = new JarFile(source.toFile())) {
+                var entries = jar.entries();
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    if (!entry.isDirectory() && entry.getName().endsWith(".class")
+                            && prefixes.stream().anyMatch(entry.getName()::startsWith)) {
+                        String className = entry.getName().substring(0, entry.getName().length() - 6).replace('/', '.');
+                        try (var input = jar.getInputStream(entry)) {
+                            classes.put(className, input.readAllBytes());
+                        }
+                    }
+                }
+            }
+        }
+        return Map.copyOf(classes);
+    }
+
+    private static List<String> classEntryPrefixes(Collection<String> packages) {
+        List<String> prefixes = packages.stream()
+                .map(DefaultPoleAgentContext::normalizePackage)
+                .distinct()
+                .map(name -> name.substring(0, name.length() - 1).replace('.', '/') + '/')
+                .toList();
+        if (prefixes.isEmpty()) {
+            throw new IllegalArgumentException("packages must not be empty");
+        }
+        return prefixes;
+    }
+
+    private static boolean includeSystemPayloadEntry(String entryName, List<String> prefixes) {
+        if (entryName.startsWith("META-INF/services/")) {
+            return !entryName.equals("META-INF/services/io.github.latticehub.agent.api.PoleAgentPlugin");
+        }
+        return entryName.endsWith(".class") && prefixes.stream().anyMatch(entryName::startsWith);
     }
 
     @Override
@@ -63,71 +150,9 @@ final class DefaultPoleAgentContext implements PoleAgentContext {
             if (existing != null) {
                 return existing;
             }
-            Path payloadJar = createPayloadJar(loaderId, packages);
-            PayloadClassLoader created = new PayloadClassLoader(payloadJar.toUri().toURL(), parent, packages);
+            PayloadClassLoader created = new PayloadClassLoader(distributionLocation.toURL(), parent, packages);
             byPayload.put(loaderId, new WeakReference<>(created));
             return created;
-        }
-    }
-
-    private Path createPayloadJar(String loaderId, List<String> packages) throws IOException {
-        List<String> entryPrefixes = packages.stream()
-                .map(name -> name.substring(0, name.length() - 1).replace('.', '/') + '/')
-                .toList();
-        Map<String, byte[]> classes = payloadClasses(entryPrefixes);
-        if (classes.isEmpty()) {
-            throw new IOException("Pole Agent payload classes are missing: " + loaderId);
-        }
-        Path jar = Files.createTempFile("pole-agent-" + sanitize(loaderId) + '-', ".jar");
-        jar.toFile().deleteOnExit();
-        try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(jar))) {
-            for (Map.Entry<String, byte[]> entry : classes.entrySet()) {
-                output.putNextEntry(new JarEntry(entry.getKey()));
-                output.write(entry.getValue());
-                output.closeEntry();
-            }
-        }
-        return jar;
-    }
-
-    private Map<String, byte[]> payloadClasses(List<String> prefixes) throws IOException {
-        Path source = Path.of(distributionLocation);
-        LinkedHashMap<String, byte[]> classes = new LinkedHashMap<>();
-        if (Files.isDirectory(source)) {
-            for (String prefix : prefixes) {
-                Path root = source.resolve(prefix);
-                if (!Files.exists(root)) {
-                    continue;
-                }
-                try (var stream = Files.walk(root)) {
-                    for (Path file : stream.filter(path -> path.toString().endsWith(".class")).toList()) {
-                        String entryName = source.relativize(file).toString()
-                                .replace(source.getFileSystem().getSeparator(), "/");
-                        classes.put(entryName, Files.readAllBytes(file));
-                    }
-                }
-            }
-        } else {
-            try (JarFile jar = new JarFile(source.toFile())) {
-                var entries = jar.entries();
-                while (entries.hasMoreElements()) {
-                    JarEntry entry = entries.nextElement();
-                    if (!entry.isDirectory() && entry.getName().endsWith(".class") && matches(entry.getName(), prefixes)) {
-                        try (var input = jar.getInputStream(entry)) {
-                            classes.put(entry.getName(), input.readAllBytes());
-                        }
-                    }
-                }
-            }
-        }
-        return classes;
-    }
-
-    private static URI sourceLocation() {
-        try {
-            return DefaultPoleAgentContext.class.getProtectionDomain().getCodeSource().getLocation().toURI();
-        } catch (Exception exception) {
-            throw new IllegalStateException("cannot locate Pole Java Agent distribution", exception);
         }
     }
 
@@ -147,14 +172,6 @@ final class DefaultPoleAgentContext implements PoleAgentContext {
             throw new IllegalArgumentException("child-first package must not be blank");
         }
         return normalized + '.';
-    }
-
-    private static boolean matches(String entryName, List<String> prefixes) {
-        return prefixes.stream().anyMatch(entryName::startsWith);
-    }
-
-    private static String sanitize(String value) {
-        return value.replaceAll("[^a-zA-Z0-9._-]", "-");
     }
 
     private static final class PayloadClassLoader extends URLClassLoader {

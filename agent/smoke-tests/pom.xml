@@ -22,7 +22,14 @@
         <module>spring-boot-4</module>
     </modules>
     <dependencies>
-        <dependency><groupId>${project.groupId}</groupId><artifactId>pole-java-agent</artifactId><scope>test</scope></dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pole-java-agent</artifactId>
+            <version>${project.version}</version>
+            <classifier>distribution</classifier>
+            <type>zip</type>
+            <scope>test</scope>
+        </dependency>
         <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>${junit.version}</version><scope>test</scope></dependency>
     </dependencies>
     <build>
@@ -33,15 +40,17 @@
                 <version>3.8.1</version>
                 <executions>
                     <execution>
-                        <id>copy-agent</id>
+                        <id>unpack-agent-distribution</id>
                         <phase>process-test-classes</phase>
-                        <goals><goal>copy</goal></goals>
+                        <goals><goal>unpack</goal></goals>
                         <configuration>
                             <artifactItems>
                                 <artifactItem>
                                     <groupId>${project.groupId}</groupId>
                                     <artifactId>pole-java-agent</artifactId>
                                     <version>${project.version}</version>
+                                    <classifier>distribution</classifier>
+                                    <type>zip</type>
                                     <outputDirectory>${project.build.directory}/agent</outputDirectory>
                                 </artifactItem>
                             </artifactItems>

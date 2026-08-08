@@ -26,5 +26,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: pole-java-candidate
-          path: "**/target/*.jar"
+          path: |
+            **/target/*.jar
+            agent/pole-java-agent/target/*-distribution.zip
           if-no-files-found: error

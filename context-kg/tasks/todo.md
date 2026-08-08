@@ -236,3 +236,32 @@
 
 - 功能分支基于最新 `origin/develop`，经完整验证后以 fast-forward 方式合入并推送；
   本地与远端 `develop` 最终指向同一提交。
+
+## 2026-08-08 Agent 目录化分发与 ClassLoader 隔离
+
+- [x] 对照 Polaris Agent Core 的 bootstrap、extension 与插件装载边界
+- [x] 审计现有 shaded JAR 的模块泄漏与 ClassLoader 可见性
+- [x] 将 Agent 入口收敛为极薄 bootstrap JAR
+- [x] 将 core/runtime 与插件改为独立目录和 ClassLoader
+- [x] 保持 Spring Boot 2、3、4 adapter payload 隔离
+- [x] 更新 Docker artifact image 与分发文档
+- [x] 执行 JDK 17 全量、黑盒和镜像验证
+
+### 设计约束
+
+- 参考 Polaris 的职责切分，但不引入其面向 Java 8/9 的双 ASM、module boot 和动态 attach
+  复杂度；Pole 最低 JDK 17，只保留薄 bootstrap、独立 runtime、插件目录和 SPI 装载。
+- `pole-java-agent.jar` 仅承担 `premain`、定位安装目录、注册 bootstrap bridge 和反射启动
+  core；`lib/` 放稳定 API/core，`plugins/` 每个插件一个自包含 JAR，并使用独立 ClassLoader。
+- Spring Cloud 插件继续只做启动期增强和 Boot 2/3/4 payload 选择，请求级行为仍唯一位于
+  `adapters/spring-cloud`。
+
+### Review
+
+- Agent 分发改为 `pole-java-agent.jar + lib/ + plugins/`，入口 JAR 不再携带 core、插件或
+  adapter 实现；core 为每个插件建立独立 child-first ClassLoader，并通过 bootstrap bridge
+  跨越增强代码与插件运行时边界。
+- Spring Cloud 插件将 SDK、gRPC 等 payload relocation 到插件私有命名空间，只向应用
+  ClassLoader 注入当前 Boot 版本及实际存在的 Web 技术栈 adapter，Boot 2、3、4 黑盒启动均通过。
+- JDK 17 容器内 `clean verify` 和 release profile 均通过；ARM64 Docker artifact image 构建、
+  校验脚本及 `/opt/pole/java-agent` 目录内容检查通过。

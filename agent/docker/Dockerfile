@@ -11,14 +11,21 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn --batch-mode --no-transfer-progress -pl :pole-java-agent -am package -DskipTests -Dsource.skip=true -Dmaven.javadoc.skip=true
 
 RUN set -eux; \
-    set -- $(find . -type f -path '*/target/pole-java-agent-*.jar' ! -name 'original-*' ! -name '*-sources.jar' ! -name '*-javadoc.jar'); \
+    set -- $(find agent/pole-java-agent/target -maxdepth 1 -type f -name 'pole-java-agent-*-distribution.zip'); \
     test "$#" -eq 1; \
-    jar tf "$1" | grep -qx 'META-INF/MANIFEST.MF'; \
-    install -D -m 0644 "$1" /out/pole-java-agent.jar
+    archive="$(readlink -f "$1")"; \
+    mkdir -p /out; \
+    cd /out; \
+    jar xf "$archive"; \
+    test -s /out/pole-java-agent/pole-java-agent.jar; \
+    test -n "$(find /out/pole-java-agent/lib -name 'pole-agent-core-*.jar' -print -quit)"; \
+    test -n "$(find /out/pole-java-agent/plugins -name 'pole-agent-plugin-spring-cloud-*.jar' -print -quit)"
 
 FROM --platform=$TARGETPLATFORM ${RUNTIME_IMAGE}
 
 WORKDIR /opt/pole/java-agent
-COPY --from=builder /out/pole-java-agent.jar ./pole-java-agent.jar
+COPY --from=builder /out/pole-java-agent/ ./
 
-RUN test -s /opt/pole/java-agent/pole-java-agent.jar && test -r /opt/pole/java-agent/pole-java-agent.jar
+RUN test -s /opt/pole/java-agent/pole-java-agent.jar \
+    && test -d /opt/pole/java-agent/lib \
+    && test -d /opt/pole/java-agent/plugins

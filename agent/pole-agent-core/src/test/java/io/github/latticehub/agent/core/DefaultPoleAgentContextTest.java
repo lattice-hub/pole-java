@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 class DefaultPoleAgentContextTest {
     @Test
     void isolatesPayloadPerApplicationClassLoaderAndReusesEachLoader() throws Exception {
-        DefaultPoleAgentContext context = new DefaultPoleAgentContext(instrumentation());
+        DefaultPoleAgentContext context = new DefaultPoleAgentContext(instrumentation(), sourceLocation());
         ClassLoader firstApplication = new ClassLoader(getClass().getClassLoader()) {
         };
         ClassLoader secondApplication = new ClassLoader(getClass().getClassLoader()) {
@@ -38,5 +38,9 @@ class DefaultPoleAgentContextTest {
                 DefaultPoleAgentContextTest.class.getClassLoader(),
                 new Class<?>[]{Instrumentation.class},
                 (proxy, method, arguments) -> null);
+    }
+
+    private static java.net.URI sourceLocation() throws Exception {
+        return DefaultPoleAgentContext.class.getProtectionDomain().getCodeSource().getLocation().toURI();
     }
 }

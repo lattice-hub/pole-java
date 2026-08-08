@@ -6,8 +6,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
+import java.lang.reflect.Proxy;
+import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,28 +16,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PoleJavaAgentTest {
-    private static final PoleAgentContext CONTEXT = new PoleAgentContext() {
-        @Override
-        public Instrumentation instrumentation() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Class<?> loadIsolatedClass(
-                String pluginId,
-                String payloadId,
-                ClassLoader applicationClassLoader,
-                String className,
-                Collection<String> childFirstPackages) throws IOException, ClassNotFoundException {
-            throw new UnsupportedOperationException();
-        }
-    };
+    private static final URI SOURCE = URI.create("file:/pole-agent-plugin-test.jar");
 
     @Test
     void installsPluginsInStableIdOrder() {
         List<String> installed = new ArrayList<>();
 
-        PoleJavaAgent.installPlugins(CONTEXT, List.of(plugin("zeta", installed), plugin("alpha", installed)));
+        PoleJavaAgent.installPlugins(instrumentation(), List.of(
+                discovered(plugin("zeta", installed)), discovered(plugin("alpha", installed))));
 
         assertEquals(List.of("alpha", "zeta"), installed);
     }
@@ -44,9 +31,11 @@ class PoleJavaAgentTest {
     @Test
     void rejectsDuplicateAndBlankPluginIds() {
         assertThrows(IllegalStateException.class, () -> PoleJavaAgent.installPlugins(
-                CONTEXT, List.of(plugin("same", new ArrayList<>()), plugin("same", new ArrayList<>()))));
+                instrumentation(), List.of(
+                        discovered(plugin("same", new ArrayList<>())),
+                        discovered(plugin("same", new ArrayList<>())))));
         assertThrows(IllegalStateException.class, () -> PoleJavaAgent.installPlugins(
-                CONTEXT, List.of(plugin(" ", new ArrayList<>()))));
+                instrumentation(), List.of(discovered(plugin(" ", new ArrayList<>())))));
     }
 
     @Test
@@ -65,7 +54,7 @@ class PoleJavaAgentTest {
 
         IllegalStateException failure = assertThrows(
                 IllegalStateException.class,
-                () -> PoleJavaAgent.installPlugins(CONTEXT, List.of(failing)));
+                () -> PoleJavaAgent.installPlugins(instrumentation(), List.of(discovered(failing))));
 
         assertTrue(failure.getMessage().contains("broken"));
     }
@@ -82,5 +71,16 @@ class PoleJavaAgentTest {
                 installed.add(id);
             }
         };
+    }
+
+    private static PoleJavaAgent.DiscoveredPlugin discovered(PoleAgentPlugin plugin) {
+        return new PoleJavaAgent.DiscoveredPlugin(plugin, SOURCE);
+    }
+
+    private static Instrumentation instrumentation() {
+        return (Instrumentation) Proxy.newProxyInstance(
+                PoleJavaAgentTest.class.getClassLoader(),
+                new Class<?>[]{Instrumentation.class},
+                (proxy, method, arguments) -> null);
     }
 }

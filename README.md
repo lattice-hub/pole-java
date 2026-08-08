@@ -22,10 +22,11 @@ framework adapter 与薄 Java Agent。现有 Maven artifact
 | `pole-java-bom` | Java 模块统一版本管理 | 已实现 |
 | `adapters/spring-cloud/pole-spring-cloud-common` | Spring Cloud LoadBalancer 共用出站行为 | 已实现 |
 | `adapters/spring-cloud/pole-spring-cloud-boot-{2,3,4}` | 按 Boot 主版本隔离的自动安装与入站适配 | 已实现 |
+| `agent/pole-agent-bootstrap` | bootstrap ClassLoader 可见的稳定事件桥 | 已实现 |
 | `agent/pole-agent-api` | framework-neutral Agent 插件 SPI | 已实现 |
-| `agent/pole-agent-core` | 插件发现、生命周期和应用 ClassLoader payload 隔离 | 已实现 |
+| `agent/pole-agent-core` | 插件目录发现、独立 ClassLoader、生命周期和 payload 隔离 | 已实现 |
 | `agent/plugins/pole-agent-plugin-spring-cloud` | Spring Cloud 探测与 Boot 2/3/4 adapter 选择 | 已实现 |
-| `agent/pole-java-agent` | 内置插件的单一 shaded Agent JAR 分发 | 已实现 |
+| `agent/pole-java-agent` | 薄 Agent 入口与 `lib/plugins` 目录化分发 | 已实现 |
 | `agent/docker` | 可作为 init container 使用的 Agent artifact image | 已实现 |
 
 核心类继续位于同一个 artifact，避免将既有 `io.github.latticehub.client` package
@@ -165,10 +166,23 @@ namespace 依次读取 `pole.namespace`、`POD_NAMESPACE`，最后使用 `defaul
 
 ## Java Agent
 
-`pole-java-agent` 对外仍是单一可执行 Agent JAR，内部按 `API -> core -> plugins -> distribution`
-分层。core 不引用 Spring、Dubbo、gRPC 或 Thrift；内置插件通过 `ServiceLoader` 发现，并只负责
-框架探测、instrumentation 与对应 adapter payload 的选择。当前已实现 Spring Cloud 插件，Dubbo、
-业务 gRPC 与 Thrift 插件保留为独立后续模块，不在 core 中预埋协议逻辑。
+`pole-java-agent` 使用目录化分发，不再把 API、core、框架插件和 adapter payload 全部 shade
+进一个大 JAR：
+
+```text
+pole-java-agent/
+├── pole-java-agent.jar
+├── lib/
+│   ├── pole-agent-api-*.jar
+│   └── pole-agent-core-*.jar
+└── plugins/
+    └── pole-agent-plugin-spring-cloud-*.jar
+```
+
+入口 JAR 只负责 `premain`、安装 bootstrap bridge、定位 `lib/` 并启动 core。core 从
+`plugins/` 发现插件，每个插件使用独立 ClassLoader 和自包含依赖；core 不引用 Spring、Dubbo、
+gRPC 或 Thrift。当前已实现 Spring Cloud 插件，Dubbo、业务 gRPC 与 Thrift 插件保留为独立后续
+模块，不在 core 中预埋协议逻辑。
 
 ```shell
 java -javaagent:/opt/pole/java-agent/pole-java-agent.jar -jar application.jar
@@ -180,15 +194,15 @@ Agent 在 `SpringApplication` 加载时识别 Boot 主版本并安装对应 init
 
 当前尚未实现 Dubbo、Thrift client 或业务 gRPC adapter。
 
-Agent 也可构建为只携带 JAR 的多架构 artifact image：
+Agent 也可构建为携带完整目录分发的多架构 artifact image：
 
 ```shell
 docker buildx build --platform linux/amd64,linux/arm64 \
   -f agent/docker/Dockerfile -t pole-java-agent:local .
 ```
 
-镜像固定提供 `/opt/pole/java-agent/pole-java-agent.jar`，适合由 Kubernetes init container
-复制到业务容器共享卷；它不是应用运行时镜像，不负责启动业务 JVM。
+镜像固定提供 `/opt/pole/java-agent/pole-java-agent.jar`、`lib/` 和 `plugins/`，适合由
+Kubernetes init container 整体复制到业务容器共享卷；它不是应用运行时镜像，不负责启动业务 JVM。
 
 ## 契约
 

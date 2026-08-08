@@ -71,6 +71,7 @@
             <dependency><groupId>${project.groupId}</groupId><artifactId>pole-spring-cloud-boot-2</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>${project.groupId}</groupId><artifactId>pole-spring-cloud-boot-3</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>${project.groupId}</groupId><artifactId>pole-spring-cloud-boot-4</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-bootstrap</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-api</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-core</artifactId><version>${project.version}</version></dependency>
             <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-plugin-spring-cloud</artifactId><version>${project.version}</version></dependency>

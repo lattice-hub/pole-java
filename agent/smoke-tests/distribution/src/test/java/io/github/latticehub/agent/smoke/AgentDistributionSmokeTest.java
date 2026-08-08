@@ -3,10 +3,8 @@ package io.github.latticehub.agent.smoke;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.jar.JarFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,41 +12,63 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class AgentDistributionSmokeTest {
-    private static final String SERVICE_DESCRIPTOR =
-            "META-INF/services/io.github.latticehub.agent.api.PoleAgentPlugin";
-
     @Test
-    void shadedJarContainsAgentCorePluginAndVersionedPayloads() throws IOException {
+    void distributionSeparatesBootstrapCoreAndPluginPayloads() throws IOException {
         try (JarFile jar = new JarFile(agentJar().toFile())) {
             assertEquals(
                     "io.github.latticehub.agent.PoleJavaAgent",
                     jar.getManifest().getMainAttributes().getValue("Premain-Class"));
             assertEntry(jar, "io/github/latticehub/agent/PoleJavaAgent.class");
-            assertEntry(jar, "io/github/latticehub/agent/api/PoleAgentPlugin.class");
-            assertEntry(jar, "io/github/latticehub/agent/core/PoleJavaAgent.class");
-            assertEntry(jar, "io/github/latticehub/agent/plugin/springcloud/SpringCloudAgentPlugin.class");
-            assertEntry(jar, "io/github/latticehub/adapter/springcloud/boot2/PoleSpringBoot2Initializer.class");
-            assertEntry(jar, "io/github/latticehub/adapter/springcloud/boot3/PoleSpringBoot3Initializer.class");
-            assertEntry(jar, "io/github/latticehub/adapter/springcloud/boot4/PoleSpringBoot4Initializer.class");
-            assertNull(jar.getEntry("META-INF/spring.factories"));
-            assertNull(jar.getEntry("META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports"));
+            assertEntry(jar, "io/github/latticehub/agent/bootstrap/PoleAgentBridge.class");
+            assertNull(jar.getEntry("io/github/latticehub/agent/api/PoleAgentPlugin.class"));
+            assertNull(jar.getEntry("io/github/latticehub/agent/core/PoleJavaAgent.class"));
+            assertNull(jar.getEntry("io/github/latticehub/agent/plugin/springcloud/SpringCloudAgentPlugin.class"));
+        }
 
-            List<String> providers;
-            try (var input = jar.getInputStream(jar.getEntry(SERVICE_DESCRIPTOR))) {
-                providers = new String(input.readAllBytes(), StandardCharsets.UTF_8)
-                        .lines()
-                        .filter(line -> !line.isBlank())
-                        .toList();
-            }
-            assertEquals(List.of("io.github.latticehub.agent.plugin.springcloud.SpringCloudAgentPlugin"), providers);
+        assertJarContains(runtimeJar("pole-agent-api"), "io/github/latticehub/agent/api/PoleAgentPlugin.class");
+        assertJarContains(runtimeJar("pole-agent-core"), "io/github/latticehub/agent/core/PoleJavaAgent.class");
+        Path pluginJar = pluginJar("pole-agent-plugin-spring-cloud");
+        assertJarContains(pluginJar, "io/github/latticehub/agent/plugin/springcloud/SpringCloudAgentPlugin.class");
+        assertJarContains(pluginJar, "io/github/latticehub/adapter/springcloud/boot2/PoleSpringBoot2Initializer.class");
+        assertJarContains(pluginJar, "io/github/latticehub/adapter/springcloud/boot3/PoleSpringBoot3Initializer.class");
+        assertJarContains(pluginJar, "io/github/latticehub/adapter/springcloud/boot4/PoleSpringBoot4Initializer.class");
+        assertJarContains(pluginJar,
+                "io/github/latticehub/agent/plugin/springcloud/payload/client/SidecarBootstrapClient.class");
+        try (JarFile jar = new JarFile(pluginJar.toFile())) {
+            assertNull(jar.getEntry("io/github/latticehub/agent/api/PoleAgentPlugin.class"));
+            assertNull(jar.getEntry("io/github/latticehub/agent/bootstrap/PoleAgentBridge.class"));
         }
     }
 
-    private static Path agentJar() throws IOException {
-        try (var files = Files.list(Path.of("target", "agent"))) {
-            return files.filter(path -> path.getFileName().toString().matches("pole-java-agent-.+\\.jar"))
+    private static Path agentJar() {
+        return distributionHome().resolve("pole-java-agent.jar");
+    }
+
+    private static Path runtimeJar(String artifactId) throws IOException {
+        return findJar(distributionHome().resolve("lib"), artifactId);
+    }
+
+    private static Path pluginJar(String artifactId) throws IOException {
+        return findJar(distributionHome().resolve("plugins"), artifactId);
+    }
+
+    private static Path findJar(Path directory, String artifactId) throws IOException {
+        try (var files = Files.list(directory)) {
+            return files.filter(path -> path.getFileName().toString().startsWith(artifactId + "-"))
                     .findFirst()
-                    .orElseThrow(() -> new IOException("copied Pole Java Agent JAR is missing"));
+                    .orElseThrow(() -> new IOException("Pole Java Agent artifact is missing: " + artifactId));
+        }
+    }
+
+    private static Path distributionHome() {
+        return Path.of("target", "agent", "pole-java-agent");
+    }
+
+    private static void assertJarContains(Path path, String entryName) throws IOException {
+        try (JarFile jar = new JarFile(path.toFile())) {
+            assertEntry(jar, entryName);
+            assertNull(jar.getEntry("META-INF/spring.factories"));
+            assertNull(jar.getEntry("META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports"));
         }
     }
 
