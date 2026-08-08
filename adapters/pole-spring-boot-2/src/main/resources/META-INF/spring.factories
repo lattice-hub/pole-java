@@ -1,5 +1,0 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-io.github.latticehub.adapter.spring.boot2.PoleSpringBoot2AutoConfiguration,\
-io.github.latticehub.adapter.spring.boot2.PoleSpringBoot2BlockingAutoConfiguration,\
-io.github.latticehub.adapter.spring.boot2.PoleSpringBoot2ReactiveAutoConfiguration,\
-io.github.latticehub.adapter.spring.boot2.PoleSpringBoot2ServletAutoConfiguration

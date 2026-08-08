@@ -200,3 +200,39 @@
 - 三个不依赖 adapter 的独立 Spring Boot 应用均通过 `-javaagent` 黑盒启动并输出
   `POLE_AGENT_OK:boot2`、`POLE_AGENT_OK:boot3`、`POLE_AGENT_OK:boot4`。Agent manifest、
   payload、gRPC service provider、无自动配置资源泄漏和 `git diff --check` 均已复核。
+
+## 2026-08-08 Adapter 与 Agent 插件化重构
+
+- [x] 确认 Agent 插件分发与装载形态
+- [x] 拆分通用 Agent SPI 与运行时核心
+- [x] 将 Spring Cloud 安装迁入独立插件
+- [x] 建立 Dubbo、gRPC、Thrift 插件边界
+- [x] 按框架和版本重组 adapter artifact/package
+- [x] 补充插件发现、隔离与兼容性测试
+- [x] 执行 JDK 17 全量构建和黑盒验证
+
+### Review
+
+- Agent 内部拆为 `pole-agent-api`、`pole-agent-core`、独立 `pole-agent-plugin-*` 与
+  `pole-java-agent` distribution；core 仅负责 SPI 发现、生命周期和应用 ClassLoader 级 payload
+  隔离，不再引用 Spring 类型、版本表或 adapter package。
+- Spring Cloud adapter 迁入独立 family，artifact/package 统一使用 `pole-spring-cloud-*` 与
+  `io.github.latticehub.adapter.springcloud.*`；Spring Cloud 插件通过 `ServiceLoader` 注册并选择
+  Boot 2、3、4 payload。Dubbo、业务 gRPC、Thrift 的独立插件边界已写入插件规范，但功能尚未实现。
+- 分发测试复核 manifest、SPI descriptor、三代 payload 和 Spring 自动配置资源隔离；三个独立
+  Spring Boot 应用均使用最终 shaded JAR 的 `-javaagent` 成功启动并获得 adapter bean。
+- JDK 17 / Maven 3.9.11 容器下 `mvn clean verify` 与
+  `mvn -Prelease -Dgpg.skip=true verify` 均通过，共 56 项测试、0 失败、1 项 live Sidecar 测试跳过。
+- `agent/docker/Dockerfile` 成功构建 `linux/arm64` artifact image，验证固定路径
+  `/opt/pole/java-agent/pole-java-agent.jar`；CI 同时覆盖 `linux/amd64` 与 `linux/arm64`。
+
+## 2026-08-08 插件化重构交付
+
+- [x] 提交 Agent 插件化与 adapter 重组改动
+- [x] 合并到 `develop` 并推送远端
+- [x] 核对本地与远端 `develop` 一致
+
+### Review
+
+- 功能分支基于最新 `origin/develop`，经完整验证后以 fast-forward 方式合入并推送；
+  本地与远端 `develop` 最终指向同一提交。

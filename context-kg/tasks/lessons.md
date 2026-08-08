@@ -12,3 +12,4 @@
 - Java gRPC 双向流不能在 `ClientResponseObserver.beforeStart` 中调用 `onNext`；该回调发生在底层 call 完成 start 之前。应先从异步 Stub 获取请求 `StreamObserver`，再依次发送 `ClientHello` 和 desired registrations。
 - 当仓库同时承载 Java Thin SDK、framework adapter 与 Java Agent 时，仓库命名使用 `pole-java`，不要继续用只表达客户端核心包的 `pole-client-java`；各能力仍拆成独立 Maven 模块和 artifact。
 - Spring adapter 与 Java Agent 的兼容范围必须同时覆盖 Spring Boot 2、3、4；共享行为下沉到稳定 SPI，按不兼容的大版本拆分安装模块，不能只实现 Boot 3。
+- Java Agent 核心不能直接硬编码 `SpringApplication`、Spring initializer、Boot 版本表或 Spring package 前缀；核心只提供 instrumentation、插件发现、匹配、隔离、生命周期和诊断，Spring Cloud、Dubbo、gRPC、Thrift 分别作为独立 Agent 插件及 adapter 模块接入。

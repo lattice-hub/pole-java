@@ -36,6 +36,8 @@ Maven Central。
 
 正式非 ALPHA 发布前确认契约 tag、Central namespace、签名和凭据。
 
-所有可发布模块使用统一版本。`pole-client-java` 保持 Thin SDK 核心入口，Spring Boot 2/3/4
-adapter 与 `pole-java-agent` 均由 `pole-java-bom` 管理版本；`adapters/` 仅作为聚合 POM，
-`pole-java-agent` 发布为无外部运行时依赖的 shaded JAR。
+所有可发布模块使用统一版本。`pole-client-java` 保持 Thin SDK 核心入口，
+`pole-spring-cloud-boot-2/3/4`、Agent API/core/内置插件与 `pole-java-agent` 均由
+`pole-java-bom` 管理版本；adapter 与 Agent parent/聚合 POM 随子模块一同发布但不提供运行时实现，
+`pole-java-agent` 发布为无外部运行时依赖的 shaded JAR。`agent/smoke-tests` 仅参与 reactor 验证，
+不安装或发布。

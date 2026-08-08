@@ -14,14 +14,7 @@
     <name>Pole Java Adapters</name>
     <description>Framework adapter aggregation boundary</description>
 
-    <properties>
-        <maven.deploy.skip>true</maven.deploy.skip>
-    </properties>
-
     <modules>
-        <module>pole-spring-common</module>
-        <module>pole-spring-boot-2</module>
-        <module>pole-spring-boot-3</module>
-        <module>pole-spring-boot-4</module>
+        <module>spring-cloud</module>
     </modules>
 </project>

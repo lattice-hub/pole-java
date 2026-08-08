@@ -20,11 +20,13 @@ framework adapter 与薄 Java Agent。现有 Maven artifact
 | --- | --- | --- |
 | `pole-client-java` | Thin SDK 核心、TrafficContext、UDS 控制会话和本地服务注册 | 已实现 |
 | `pole-java-bom` | Java 模块统一版本管理 | 已实现 |
-| `adapters/pole-spring-common` | Spring Cloud LoadBalancer 共用出站行为 | 已实现 |
-| `adapters/pole-spring-boot-2` | Spring Boot 2.7 / Spring Cloud 2021.0 安装与 Servlet 适配 | 已实现 |
-| `adapters/pole-spring-boot-3` | Spring Boot 3.5 / Spring Cloud 2025.0 安装与 Servlet 适配 | 已实现 |
-| `adapters/pole-spring-boot-4` | Spring Boot 4.1 / Spring Cloud 2025.1 安装与 Servlet 适配 | 已实现 |
-| `agent/` | 启动期识别 Boot 2/3/4 并自动装配对应 adapter | 已实现 |
+| `adapters/spring-cloud/pole-spring-cloud-common` | Spring Cloud LoadBalancer 共用出站行为 | 已实现 |
+| `adapters/spring-cloud/pole-spring-cloud-boot-{2,3,4}` | 按 Boot 主版本隔离的自动安装与入站适配 | 已实现 |
+| `agent/pole-agent-api` | framework-neutral Agent 插件 SPI | 已实现 |
+| `agent/pole-agent-core` | 插件发现、生命周期和应用 ClassLoader payload 隔离 | 已实现 |
+| `agent/plugins/pole-agent-plugin-spring-cloud` | Spring Cloud 探测与 Boot 2/3/4 adapter 选择 | 已实现 |
+| `agent/pole-java-agent` | 内置插件的单一 shaded Agent JAR 分发 | 已实现 |
+| `agent/docker` | 可作为 init container 使用的 Agent artifact image | 已实现 |
 
 核心类继续位于同一个 artifact，避免将既有 `io.github.latticehub.client` package
 拆散到多个 JAR。adapter 是请求级行为的唯一实现；Agent 不复制目标身份、TrafficContext 或 Sidecar
@@ -149,7 +151,7 @@ TrafficContext 构造与 Baggage 编解码失败时抛出 `TrafficContextExcepti
 ```xml
 <dependency>
     <groupId>io.github.lattice-hub</groupId>
-    <artifactId>pole-spring-boot-3</artifactId>
+    <artifactId>pole-spring-cloud-boot-3</artifactId>
     <version>${pole.version}</version>
 </dependency>
 ```
@@ -163,10 +165,13 @@ namespace 依次读取 `pole.namespace`、`POD_NAMESPACE`，最后使用 `defaul
 
 ## Java Agent
 
-`pole-java-agent` 是包含 Thin SDK、三代安装模块及 Byte Buddy 的单一可执行 Agent JAR：
+`pole-java-agent` 对外仍是单一可执行 Agent JAR，内部按 `API -> core -> plugins -> distribution`
+分层。core 不引用 Spring、Dubbo、gRPC 或 Thrift；内置插件通过 `ServiceLoader` 发现，并只负责
+框架探测、instrumentation 与对应 adapter payload 的选择。当前已实现 Spring Cloud 插件，Dubbo、
+业务 gRPC 与 Thrift 插件保留为独立后续模块，不在 core 中预埋协议逻辑。
 
 ```shell
-java -javaagent:/opt/pole/pole-java-agent.jar -jar application.jar
+java -javaagent:/opt/pole/java-agent/pole-java-agent.jar -jar application.jar
 ```
 
 Agent 在 `SpringApplication` 加载时识别 Boot 主版本并安装对应 initializer。它不做逐请求字节码
@@ -174,6 +179,16 @@ Agent 在 `SpringApplication` 加载时识别 Boot 主版本并安装对应 init
 必须在 JVM 启动时通过 `-javaagent` 提供，不支持应用启动后的动态 attach。
 
 当前尚未实现 Dubbo、Thrift client 或业务 gRPC adapter。
+
+Agent 也可构建为只携带 JAR 的多架构 artifact image：
+
+```shell
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -f agent/docker/Dockerfile -t pole-java-agent:local .
+```
+
+镜像固定提供 `/opt/pole/java-agent/pole-java-agent.jar`，适合由 Kubernetes init container
+复制到业务容器共享卷；它不是应用运行时镜像，不负责启动业务 JVM。
 
 ## 契约
 

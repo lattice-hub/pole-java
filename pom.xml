@@ -67,26 +67,13 @@
                 <artifactId>pole-client-java</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>pole-spring-common</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>pole-spring-boot-2</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>pole-spring-boot-3</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>pole-spring-boot-4</artifactId>
-                <version>${project.version}</version>
-            </dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-spring-cloud-common</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-spring-cloud-boot-2</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-spring-cloud-boot-3</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-spring-cloud-boot-4</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-api</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-core</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-plugin-spring-cloud</artifactId><version>${project.version}</version></dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>pole-java-agent</artifactId>

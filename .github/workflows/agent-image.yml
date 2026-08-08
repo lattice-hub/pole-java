@@ -1,0 +1,53 @@
+name: Java Agent 镜像验证
+
+on:
+  push:
+    paths:
+      - '.dockerignore'
+      - '.github/workflows/agent-image.yml'
+      - 'agent/**'
+      - 'adapters/**'
+      - 'pole-client-java/**'
+      - 'pom.xml'
+  pull_request:
+    paths:
+      - '.dockerignore'
+      - '.github/workflows/agent-image.yml'
+      - 'agent/**'
+      - 'adapters/**'
+      - 'pole-client-java/**'
+      - 'pom.xml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: ${{ matrix.platform }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            suffix: amd64
+          - platform: linux/arm64
+            suffix: arm64
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      - name: 配置 QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: 配置 Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: 构建镜像
+        run: |
+          docker buildx build \
+            --platform "${{ matrix.platform }}" \
+            --load \
+            --tag "pole-java-agent:ci-${{ matrix.suffix }}" \
+            --file agent/docker/Dockerfile \
+            .
+      - name: 验证镜像内容
+        run: agent/docker/verify-image.sh "pole-java-agent:ci-${{ matrix.suffix }}" "${{ matrix.platform }}"

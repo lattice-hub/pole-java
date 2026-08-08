@@ -1,0 +1,4 @@
+io.github.latticehub.adapter.springcloud.boot4.PoleSpringBoot4AutoConfiguration
+io.github.latticehub.adapter.springcloud.boot4.PoleSpringBoot4BlockingAutoConfiguration
+io.github.latticehub.adapter.springcloud.boot4.PoleSpringBoot4ReactiveAutoConfiguration
+io.github.latticehub.adapter.springcloud.boot4.PoleSpringBoot4ServletAutoConfiguration
