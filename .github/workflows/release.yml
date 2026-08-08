@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: maven-central
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: 设置 Java 与 Maven Central 凭据
         uses: actions/setup-java@v5
         with:
