@@ -265,3 +265,57 @@
   ClassLoader 注入当前 Boot 版本及实际存在的 Web 技术栈 adapter，Boot 2、3、4 黑盒启动均通过。
 - JDK 17 容器内 `clean verify` 和 release profile 均通过；ARM64 Docker artifact image 构建、
   校验脚本及 `/opt/pole/java-agent` 目录内容检查通过。
+
+## 2026-08-08 Spring Cloud 多版本插件族
+
+- [x] 明确插件族目录与版本选择边界
+- [x] 将 Spring Cloud 插件拆为入口和 3x/4x/5x provider
+- [x] 按 Boot major 初筛并校验 Spring Cloud ABI
+- [x] 调整 Agent 分发为插件族目录
+- [x] 增加版本选择与 Boot 2/3/4 黑盒测试
+- [x] 执行 JDK 17 全量与镜像验证
+
+### 设计约束
+
+- `agent/plugins` 保留为跨协议总目录，协议族使用 `spring-cloud-plugins/` 子目录；版本模块使用
+  `spring-cloud-3x-plugin` 等无点号 artifact 名，避免把 Spring Cloud、Dubbo、gRPC、Thrift
+  混在同一层级。
+- Spring Cloud 入口插件只增强一次 `SpringApplication`；3x/4x/5x provider 仅描述兼容范围和
+  payload，不得各自重复安装 Byte Buddy transformer。
+- 运行时先按 Spring Boot major 缩小候选范围，再检查 Spring Cloud major/API 能力；不能把
+  “Boot major 相同”直接等同于所有 Spring Cloud release train 均兼容。
+
+### Review
+
+- Agent Core 现在把 `plugins/` 下的目录视为插件族，并用同一个隔离 ClassLoader 加载族内入口与
+  版本 provider；单 JAR 插件仍保持兼容。
+- Spring Cloud 入口插件只安装一个 `SpringApplication` transformer，运行时根据 Boot major 与
+  可读取的 Cloud major 唯一选择 3x/4x/5x provider，再注入对应 adapter payload。
+- 分发 ZIP 与 Docker 镜像均使用 `plugins/spring-cloud-plugins/`，且只包含入口及三个版本 JAR。
+- JDK 17 下 `clean verify`、release profile、Boot 2/3/4 + Cloud 3/4/5 黑盒测试和 arm64 镜像验证均通过。
+
+## 2026-08-08 Dubbo、gRPC、Thrift Agent 插件
+
+- [x] 梳理三种协议的客户端插桩边界与版本兼容策略
+- [x] 实现 Dubbo 插件族及 adapter payload
+- [x] 实现 gRPC 插件族及 adapter payload
+- [x] 实现 Thrift 插件族及 adapter payload
+- [x] 接入 Agent 分发、Docker 镜像和 BOM
+- [x] 增加真实依赖黑盒测试并完成 JDK 17 全量验收
+
+### 设计约束
+
+- Agent 只在启动期安装框架插件，逐请求行为由独立 adapter payload 负责；Agent Core 不硬编码协议类名。
+- 每种协议使用独立插件族目录和 ClassLoader，不把 Dubbo、gRPC、Thrift payload 混入 Spring Cloud 插件。
+- 首版必须使用真实框架依赖执行黑盒测试；仅验证类匹配或 transformer 安装不等于协议接入完成。
+
+### Review
+
+- Dubbo 3.x 插件增强官方 Consumer/Provider Filter，adapter 通过 invocation attachment 传播 W3C Baggage；
+  使用 Dubbo 3.3.6 真实类型完成黑盒验证。
+- gRPC 1.x 插件在 Channel/Server build 前安装拦截器，adapter 在 Metadata 中传播 W3C Baggage；
+  使用 gRPC 1.82.0 in-process 调用完成黑盒验证。
+- Thrift 插件首版明确限定为 Thrift-over-HTTP，通过 `THttpClient` 与 `TServlet` 的 HTTP Header
+  传播上下文；不宣称原生 Framed/Binary/Compact/Multiplexed TCP 具备透明元数据通道。
+- JDK 17 下 40 模块 `clean verify`、release profile、三类真实依赖 smoke test 均通过；ARM64
+  Docker artifact image 构建和插件族目录校验通过。

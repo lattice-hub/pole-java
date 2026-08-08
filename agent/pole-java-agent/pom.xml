@@ -20,7 +20,13 @@
         </dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-api</artifactId><optional>true</optional></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-core</artifactId><optional>true</optional></dependency>
-        <dependency><groupId>${project.groupId}</groupId><artifactId>pole-agent-plugin-spring-cloud</artifactId><optional>true</optional></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>spring-cloud-plugin</artifactId><optional>true</optional></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>spring-cloud-3x-plugin</artifactId><optional>true</optional></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>spring-cloud-4x-plugin</artifactId><optional>true</optional></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>spring-cloud-5x-plugin</artifactId><optional>true</optional></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>dubbo-3x-plugin</artifactId><optional>true</optional></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>grpc-1x-plugin</artifactId><optional>true</optional></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>thrift-http-plugin</artifactId><optional>true</optional></dependency>
     </dependencies>
 
     <build>

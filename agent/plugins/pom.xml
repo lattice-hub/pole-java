@@ -7,5 +7,10 @@
     <artifactId>pole-agent-plugins</artifactId>
     <packaging>pom</packaging>
     <name>Pole Agent Plugins</name>
-    <modules><module>pole-agent-plugin-spring-cloud</module></modules>
+    <modules>
+        <module>spring-cloud-plugins</module>
+        <module>dubbo-plugins</module>
+        <module>grpc-plugins</module>
+        <module>thrift-plugins</module>
+    </modules>
 </project>

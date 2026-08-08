@@ -8,8 +8,12 @@ import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Proxy;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -59,6 +63,22 @@ class PoleJavaAgentTest {
         assertTrue(failure.getMessage().contains("broken"));
     }
 
+    @Test
+    void discoversEntryPluginFromPluginFamilyDirectory() throws Exception {
+        Path plugins = Files.createTempDirectory("pole-agent-plugins-");
+        Path family = Files.createDirectory(plugins.resolve("test-plugins"));
+        try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(family.resolve("test-plugin.jar")))) {
+            output.putNextEntry(new JarEntry("META-INF/services/" + PoleAgentPlugin.class.getName()));
+            output.write(TestPlugin.class.getName().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            output.closeEntry();
+        }
+
+        List<PoleJavaAgent.DiscoveredPlugin> pluginsFound = PoleJavaAgent.discoverPlugins(plugins);
+
+        assertEquals(List.of("test"), pluginsFound.stream().map(plugin -> plugin.plugin().id()).toList());
+        assertEquals(family.toUri(), pluginsFound.get(0).source());
+    }
+
     private static PoleAgentPlugin plugin(String id, List<String> installed) {
         return new PoleAgentPlugin() {
             @Override
@@ -82,5 +102,16 @@ class PoleJavaAgentTest {
                 PoleJavaAgentTest.class.getClassLoader(),
                 new Class<?>[]{Instrumentation.class},
                 (proxy, method, arguments) -> null);
+    }
+
+    public static final class TestPlugin implements PoleAgentPlugin {
+        @Override
+        public String id() {
+            return "test";
+        }
+
+        @Override
+        public void install(PoleAgentContext context) {
+        }
     }
 }

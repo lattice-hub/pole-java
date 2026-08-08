@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>io.github.lattice-hub</groupId><artifactId>spring-cloud-plugins</artifactId><version>0.1.0-SNAPSHOT</version></parent>
+    <artifactId>spring-cloud-3x-plugin</artifactId>
+    <name>Pole Agent Spring Cloud 3.x Plugin</name>
+    <description>Spring Cloud 3.x and Spring Boot 2 adapter payload</description>
+    <dependencies>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>spring-cloud-plugin</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>pole-spring-cloud-boot-2</artifactId></dependency>
+    </dependencies>
+    <build><plugins><plugin>
+        <groupId>org.apache.maven.plugins</groupId><artifactId>maven-shade-plugin</artifactId><version>3.6.1</version>
+        <executions><execution><phase>package</phase><goals><goal>shade</goal></goals><configuration>
+            <artifactSet><includes><include>${project.groupId}:pole-spring-cloud-boot-2</include></includes></artifactSet>
+            <createDependencyReducedPom>false</createDependencyReducedPom>
+            <relocations><relocation><pattern>io.github.latticehub.client</pattern><shadedPattern>io.github.latticehub.agent.plugin.springcloud.payload.client</shadedPattern></relocation></relocations>
+            <filters><filter><artifact>*:*</artifact><excludes>
+                <exclude>META-INF/*.SF</exclude><exclude>META-INF/*.DSA</exclude><exclude>META-INF/*.RSA</exclude>
+                <exclude>META-INF/spring.factories</exclude>
+                <exclude>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</exclude>
+            </excludes></filter></filters>
+        </configuration></execution></executions>
+    </plugin></plugins></build>
+</project>

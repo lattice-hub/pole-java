@@ -27,16 +27,43 @@ class AgentDistributionSmokeTest {
 
         assertJarContains(runtimeJar("pole-agent-api"), "io/github/latticehub/agent/api/PoleAgentPlugin.class");
         assertJarContains(runtimeJar("pole-agent-core"), "io/github/latticehub/agent/core/PoleJavaAgent.class");
-        Path pluginJar = pluginJar("pole-agent-plugin-spring-cloud");
-        assertJarContains(pluginJar, "io/github/latticehub/agent/plugin/springcloud/SpringCloudAgentPlugin.class");
-        assertJarContains(pluginJar, "io/github/latticehub/adapter/springcloud/boot2/PoleSpringBoot2Initializer.class");
-        assertJarContains(pluginJar, "io/github/latticehub/adapter/springcloud/boot3/PoleSpringBoot3Initializer.class");
-        assertJarContains(pluginJar, "io/github/latticehub/adapter/springcloud/boot4/PoleSpringBoot4Initializer.class");
-        assertJarContains(pluginJar,
+        Path entryPlugin = springCloudPluginJar("spring-cloud-plugin");
+        assertJarContains(entryPlugin, "io/github/latticehub/agent/plugin/springcloud/SpringCloudAgentPlugin.class");
+        assertJarContains(entryPlugin, "io/github/latticehub/agent/plugin/springcloud/SpringCloudVersionPlugin.class");
+        assertJarContains(entryPlugin,
                 "io/github/latticehub/agent/plugin/springcloud/payload/client/SidecarBootstrapClient.class");
-        try (JarFile jar = new JarFile(pluginJar.toFile())) {
+        assertJarContains(
+                springCloudPluginJar("spring-cloud-3x-plugin"),
+                "io/github/latticehub/adapter/springcloud/boot2/PoleSpringBoot2Initializer.class");
+        assertJarContains(
+                springCloudPluginJar("spring-cloud-4x-plugin"),
+                "io/github/latticehub/adapter/springcloud/boot3/PoleSpringBoot3Initializer.class");
+        assertJarContains(
+                springCloudPluginJar("spring-cloud-5x-plugin"),
+                "io/github/latticehub/adapter/springcloud/boot4/PoleSpringBoot4Initializer.class");
+        try (JarFile jar = new JarFile(entryPlugin.toFile())) {
             assertNull(jar.getEntry("io/github/latticehub/agent/api/PoleAgentPlugin.class"));
             assertNull(jar.getEntry("io/github/latticehub/agent/bootstrap/PoleAgentBridge.class"));
+            assertNull(jar.getEntry("io/github/latticehub/adapter/springcloud/boot2/PoleSpringBoot2Initializer.class"));
+            assertNull(jar.getEntry("io/github/latticehub/adapter/springcloud/boot3/PoleSpringBoot3Initializer.class"));
+            assertNull(jar.getEntry("io/github/latticehub/adapter/springcloud/boot4/PoleSpringBoot4Initializer.class"));
+        }
+        Path dubboPlugin = pluginJar("dubbo-plugins", "dubbo-3x-plugin");
+        assertJarContains(dubboPlugin, "io/github/latticehub/adapter/dubbo/v3/DubboTrafficContextAdapter.class");
+        Path grpcPlugin = pluginJar("grpc-plugins", "grpc-1x-plugin");
+        assertJarContains(grpcPlugin, "io/github/latticehub/adapter/grpc/PoleGrpcAdapterInstaller.class");
+        Path thriftPlugin = pluginJar("thrift-plugins", "thrift-http-plugin");
+        assertJarContains(
+                thriftPlugin,
+                "io/github/latticehub/adapter/thrift/http/ThriftHttpTrafficContextAdapter.class");
+        try (JarFile jar = new JarFile(dubboPlugin.toFile())) {
+            assertNull(jar.getEntry("org/apache/dubbo/rpc/Invocation.class"));
+        }
+        try (JarFile jar = new JarFile(grpcPlugin.toFile())) {
+            assertNull(jar.getEntry("io/grpc/ClientInterceptor.class"));
+        }
+        try (JarFile jar = new JarFile(thriftPlugin.toFile())) {
+            assertNull(jar.getEntry("org/apache/thrift/transport/THttpClient.class"));
         }
     }
 
@@ -48,8 +75,12 @@ class AgentDistributionSmokeTest {
         return findJar(distributionHome().resolve("lib"), artifactId);
     }
 
-    private static Path pluginJar(String artifactId) throws IOException {
-        return findJar(distributionHome().resolve("plugins"), artifactId);
+    private static Path springCloudPluginJar(String artifactId) throws IOException {
+        return pluginJar("spring-cloud-plugins", artifactId);
+    }
+
+    private static Path pluginJar(String family, String artifactId) throws IOException {
+        return findJar(distributionHome().resolve("plugins").resolve(family), artifactId);
     }
 
     private static Path findJar(Path directory, String artifactId) throws IOException {

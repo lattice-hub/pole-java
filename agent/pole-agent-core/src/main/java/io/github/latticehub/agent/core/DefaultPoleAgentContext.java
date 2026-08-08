@@ -10,11 +10,15 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -39,25 +43,27 @@ final class DefaultPoleAgentContext implements PoleAgentContext {
     @Override
     public void appendPluginPayloadToSystemClassLoader(Collection<String> packages) throws IOException {
         List<String> prefixes = classEntryPrefixes(packages);
-        Path source = Path.of(distributionLocation);
-        if (!Files.isRegularFile(source)) {
-            throw new IOException("Pole Agent plugin payload must come from a JAR: " + source);
-        }
         Path payloadJar = Files.createTempFile("pole-agent-system-payload-", ".jar");
         payloadJar.toFile().deleteOnExit();
-        try (JarFile pluginJar = new JarFile(source.toFile());
-             JarOutputStream output = new JarOutputStream(Files.newOutputStream(payloadJar))) {
-            var entries = pluginJar.entries();
-            while (entries.hasMoreElements()) {
-                JarEntry entry = entries.nextElement();
-                if (entry.isDirectory() || !includeSystemPayloadEntry(entry.getName(), prefixes)) {
-                    continue;
+        Set<String> writtenEntries = new HashSet<>();
+        try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(payloadJar))) {
+            for (Path archive : pluginArchives()) {
+                try (JarFile pluginJar = new JarFile(archive.toFile())) {
+                    var entries = pluginJar.entries();
+                    while (entries.hasMoreElements()) {
+                        JarEntry entry = entries.nextElement();
+                        if (entry.isDirectory()
+                                || !includeSystemPayloadEntry(entry.getName(), prefixes)
+                                || !writtenEntries.add(entry.getName())) {
+                            continue;
+                        }
+                        output.putNextEntry(new JarEntry(entry.getName()));
+                        try (var input = pluginJar.getInputStream(entry)) {
+                            input.transferTo(output);
+                        }
+                        output.closeEntry();
+                    }
                 }
-                output.putNextEntry(new JarEntry(entry.getName()));
-                try (var input = pluginJar.getInputStream(entry)) {
-                    input.transferTo(output);
-                }
-                output.closeEntry();
             }
         }
         JarFile opened = new JarFile(payloadJar.toFile());
@@ -68,25 +74,9 @@ final class DefaultPoleAgentContext implements PoleAgentContext {
     @Override
     public Map<String, byte[]> pluginClassBytes(Collection<String> packages) throws IOException {
         List<String> prefixes = classEntryPrefixes(packages);
-        Path source = Path.of(distributionLocation);
         LinkedHashMap<String, byte[]> classes = new LinkedHashMap<>();
-        if (Files.isDirectory(source)) {
-            for (String prefix : prefixes) {
-                Path root = source.resolve(prefix);
-                if (!Files.exists(root)) {
-                    continue;
-                }
-                try (var files = Files.walk(root)) {
-                    for (Path file : files.filter(path -> path.toString().endsWith(".class")).toList()) {
-                        String className = source.relativize(file).toString()
-                                .replace(source.getFileSystem().getSeparator(), ".")
-                                .replaceAll("\\.class$", "");
-                        classes.put(className, Files.readAllBytes(file));
-                    }
-                }
-            }
-        } else {
-            try (JarFile jar = new JarFile(source.toFile())) {
+        for (Path archive : pluginArchives()) {
+            try (JarFile jar = new JarFile(archive.toFile())) {
                 var entries = jar.entries();
                 while (entries.hasMoreElements()) {
                     JarEntry entry = entries.nextElement();
@@ -94,13 +84,36 @@ final class DefaultPoleAgentContext implements PoleAgentContext {
                             && prefixes.stream().anyMatch(entry.getName()::startsWith)) {
                         String className = entry.getName().substring(0, entry.getName().length() - 6).replace('/', '.');
                         try (var input = jar.getInputStream(entry)) {
-                            classes.put(className, input.readAllBytes());
+                            byte[] classBytes = input.readAllBytes();
+                            byte[] existing = classes.putIfAbsent(className, classBytes);
+                            if (existing != null && !Arrays.equals(existing, classBytes)) {
+                                throw new IOException("duplicate Pole Agent plugin payload class: " + className);
+                            }
                         }
                     }
                 }
             }
         }
         return Map.copyOf(classes);
+    }
+
+    private List<Path> pluginArchives() throws IOException {
+        Path source = Path.of(distributionLocation);
+        if (Files.isRegularFile(source)) {
+            return List.of(source);
+        }
+        if (Files.isDirectory(source)) {
+            try (var files = Files.list(source)) {
+                List<Path> archives = files
+                        .filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".jar"))
+                        .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                        .toList();
+                if (!archives.isEmpty()) {
+                    return archives;
+                }
+            }
+        }
+        throw new IOException("Pole Agent plugin bundle contains no JARs: " + source);
     }
 
     private static List<String> classEntryPrefixes(Collection<String> packages) {
@@ -117,7 +130,7 @@ final class DefaultPoleAgentContext implements PoleAgentContext {
 
     private static boolean includeSystemPayloadEntry(String entryName, List<String> prefixes) {
         if (entryName.startsWith("META-INF/services/")) {
-            return !entryName.equals("META-INF/services/io.github.latticehub.agent.api.PoleAgentPlugin");
+            return !entryName.startsWith("META-INF/services/io.github.latticehub.agent.");
         }
         return entryName.endsWith(".class") && prefixes.stream().anyMatch(entryName::startsWith);
     }
@@ -150,7 +163,10 @@ final class DefaultPoleAgentContext implements PoleAgentContext {
             if (existing != null) {
                 return existing;
             }
-            PayloadClassLoader created = new PayloadClassLoader(distributionLocation.toURL(), parent, packages);
+            URL[] pluginUrls = pluginArchives().stream()
+                    .map(DefaultPoleAgentContext::toUrl)
+                    .toArray(URL[]::new);
+            PayloadClassLoader created = new PayloadClassLoader(pluginUrls, parent, packages);
             byPayload.put(loaderId, new WeakReference<>(created));
             return created;
         }
@@ -174,11 +190,19 @@ final class DefaultPoleAgentContext implements PoleAgentContext {
         return normalized + '.';
     }
 
+    private static URL toUrl(Path path) {
+        try {
+            return path.toUri().toURL();
+        } catch (Exception exception) {
+            throw new IllegalStateException("invalid Pole Agent plugin payload path: " + path, exception);
+        }
+    }
+
     private static final class PayloadClassLoader extends URLClassLoader {
         private final List<String> childFirstPackages;
 
-        private PayloadClassLoader(URL payloadJar, ClassLoader parent, List<String> childFirstPackages) {
-            super(new URL[]{payloadJar}, parent);
+        private PayloadClassLoader(URL[] payloadJars, ClassLoader parent, List<String> childFirstPackages) {
+            super(payloadJars, parent);
             this.childFirstPackages = childFirstPackages;
         }
 

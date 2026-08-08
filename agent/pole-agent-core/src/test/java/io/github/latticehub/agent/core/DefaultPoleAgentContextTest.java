@@ -5,7 +5,11 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -41,6 +45,17 @@ class DefaultPoleAgentContextTest {
     }
 
     private static java.net.URI sourceLocation() throws Exception {
-        return DefaultPoleAgentContext.class.getProtectionDomain().getCodeSource().getLocation().toURI();
+        Path classes = Path.of(DefaultPoleAgentContext.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        Path bundle = Files.createTempDirectory("pole-agent-plugin-bundle-");
+        try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(bundle.resolve("core.jar")));
+             var files = Files.walk(classes)) {
+            for (Path file : files.filter(Files::isRegularFile).toList()) {
+                String entryName = classes.relativize(file).toString().replace(file.getFileSystem().getSeparator(), "/");
+                output.putNextEntry(new JarEntry(entryName));
+                Files.copy(file, output);
+                output.closeEntry();
+            }
+        }
+        return bundle.toUri();
     }
 }

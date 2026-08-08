@@ -27,12 +27,33 @@
             </includes>
         </dependencySet>
         <dependencySet>
-            <outputDirectory>plugins</outputDirectory>
+            <outputDirectory>plugins/spring-cloud-plugins</outputDirectory>
             <useProjectArtifact>false</useProjectArtifact>
             <useTransitiveDependencies>false</useTransitiveDependencies>
             <includes>
-                <include>${project.groupId}:pole-agent-plugin-spring-cloud</include>
+                <include>${project.groupId}:spring-cloud-plugin</include>
+                <include>${project.groupId}:spring-cloud-3x-plugin</include>
+                <include>${project.groupId}:spring-cloud-4x-plugin</include>
+                <include>${project.groupId}:spring-cloud-5x-plugin</include>
             </includes>
+        </dependencySet>
+        <dependencySet>
+            <outputDirectory>plugins/dubbo-plugins</outputDirectory>
+            <useProjectArtifact>false</useProjectArtifact>
+            <useTransitiveDependencies>false</useTransitiveDependencies>
+            <includes><include>${project.groupId}:dubbo-3x-plugin</include></includes>
+        </dependencySet>
+        <dependencySet>
+            <outputDirectory>plugins/grpc-plugins</outputDirectory>
+            <useProjectArtifact>false</useProjectArtifact>
+            <useTransitiveDependencies>false</useTransitiveDependencies>
+            <includes><include>${project.groupId}:grpc-1x-plugin</include></includes>
+        </dependencySet>
+        <dependencySet>
+            <outputDirectory>plugins/thrift-plugins</outputDirectory>
+            <useProjectArtifact>false</useProjectArtifact>
+            <useTransitiveDependencies>false</useTransitiveDependencies>
+            <includes><include>${project.groupId}:thrift-http-plugin</include></includes>
         </dependencySet>
     </dependencySets>
 </assembly>

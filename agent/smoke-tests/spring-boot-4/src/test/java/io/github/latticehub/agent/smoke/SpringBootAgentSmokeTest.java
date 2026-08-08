@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SpringBootAgentSmokeTest {
@@ -13,6 +14,7 @@ class SpringBootAgentSmokeTest {
                 "--spring.main.web-application-type=none",
                 "--spring.main.banner-mode=off")) {
             assertTrue(context.containsBean("poleSidecarHttpListenerProvider"));
+            assertEquals("spring-cloud-5x", System.getProperty("pole.agent.spring-cloud.selected-plugin"));
         }
     }
 

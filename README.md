@@ -22,10 +22,16 @@ framework adapter 与薄 Java Agent。现有 Maven artifact
 | `pole-java-bom` | Java 模块统一版本管理 | 已实现 |
 | `adapters/spring-cloud/pole-spring-cloud-common` | Spring Cloud LoadBalancer 共用出站行为 | 已实现 |
 | `adapters/spring-cloud/pole-spring-cloud-boot-{2,3,4}` | 按 Boot 主版本隔离的自动安装与入站适配 | 已实现 |
+| `adapters/dubbo/pole-dubbo-3x` | Dubbo 3.x invocation attachment 流量上下文传播 | 已实现 |
+| `adapters/grpc/pole-grpc-1x` | gRPC 1.x client/server interceptor | 已实现 |
+| `adapters/thrift/pole-thrift-http` | Thrift-over-HTTP Header 流量上下文传播 | 已实现 |
 | `agent/pole-agent-bootstrap` | bootstrap ClassLoader 可见的稳定事件桥 | 已实现 |
 | `agent/pole-agent-api` | framework-neutral Agent 插件 SPI | 已实现 |
 | `agent/pole-agent-core` | 插件目录发现、独立 ClassLoader、生命周期和 payload 隔离 | 已实现 |
-| `agent/plugins/pole-agent-plugin-spring-cloud` | Spring Cloud 探测与 Boot 2/3/4 adapter 选择 | 已实现 |
+| `agent/plugins/spring-cloud-plugins` | Spring Cloud 单一入口与 3x/4x/5x 版本 provider | 已实现 |
+| `agent/plugins/dubbo-plugins` | Dubbo 3.x Agent 插件族 | 已实现 |
+| `agent/plugins/grpc-plugins` | gRPC 1.x Agent 插件族 | 已实现 |
+| `agent/plugins/thrift-plugins` | Thrift-over-HTTP Agent 插件族 | 已实现 |
 | `agent/pole-java-agent` | 薄 Agent 入口与 `lib/plugins` 目录化分发 | 已实现 |
 | `agent/docker` | 可作为 init container 使用的 Agent artifact image | 已实现 |
 
@@ -176,13 +182,20 @@ pole-java-agent/
 │   ├── pole-agent-api-*.jar
 │   └── pole-agent-core-*.jar
 └── plugins/
-    └── pole-agent-plugin-spring-cloud-*.jar
+    ├── spring-cloud-plugins/
+    ├── dubbo-plugins/
+    ├── grpc-plugins/
+    └── thrift-plugins/
+        ├── spring-cloud-plugin-*.jar
+        ├── spring-cloud-3x-plugin-*.jar
+        ├── spring-cloud-4x-plugin-*.jar
+        └── spring-cloud-5x-plugin-*.jar
 ```
 
 入口 JAR 只负责 `premain`、安装 bootstrap bridge、定位 `lib/` 并启动 core。core 从
-`plugins/` 发现插件，每个插件使用独立 ClassLoader 和自包含依赖；core 不引用 Spring、Dubbo、
-gRPC 或 Thrift。当前已实现 Spring Cloud 插件，Dubbo、业务 gRPC 与 Thrift 插件保留为独立后续
-模块，不在 core 中预埋协议逻辑。
+`plugins/` 发现插件族，每个顶层 JAR 或子目录使用独立 ClassLoader；Spring Cloud 入口只安装一次
+instrumentation，再按 Boot major 初筛并结合 Spring Cloud major/API 从 3x/4x/5x provider 中选择
+payload。core 不引用 Spring、Dubbo、gRPC 或 Thrift，也不预埋协议版本逻辑。
 
 ```shell
 java -javaagent:/opt/pole/java-agent/pole-java-agent.jar -jar application.jar
@@ -192,7 +205,10 @@ Agent 在 `SpringApplication` 加载时识别 Boot 主版本并安装对应 init
 增强；请求改写、TrafficContext 与 Sidecar 连接仍由和显式依赖完全相同的 adapter 实现。Agent
 必须在 JVM 启动时通过 `-javaagent` 提供，不支持应用启动后的动态 attach。
 
-当前尚未实现 Dubbo、Thrift client 或业务 gRPC adapter。
+Dubbo 3.x 使用 invocation attachment 传播 W3C Baggage；gRPC 1.x 自动安装 client/server
+interceptor；Thrift 仅支持 `THttpClient`/`TServlet` 的 Thrift-over-HTTP Header 传播。原生
+Framed + Binary/Compact/Multiplexed 没有通用 metadata carrier，因此不修改帧格式，也不宣称
+支持透明 TrafficContext 传播。
 
 Agent 也可构建为携带完整目录分发的多架构 artifact image：
 

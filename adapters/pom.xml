@@ -16,5 +16,8 @@
 
     <modules>
         <module>spring-cloud</module>
+        <module>dubbo</module>
+        <module>grpc</module>
+        <module>thrift</module>
     </modules>
 </project>

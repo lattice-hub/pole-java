@@ -33,17 +33,46 @@ public final class PoleJavaAgent {
         }
         try (var files = Files.list(pluginDirectory)) {
             List<DiscoveredPlugin> plugins = new ArrayList<>();
-            for (Path pluginJar : files.filter(path -> path.getFileName().toString().endsWith(".jar"))
+            for (Path pluginBundle : files.filter(PoleJavaAgent::isPluginBundle)
                     .sorted(Comparator.comparing(path -> path.getFileName().toString()))
                     .toList()) {
-                PluginClassLoader loader = new PluginClassLoader(pluginJar.toUri().toURL(), PoleAgentPlugin.class.getClassLoader());
+                URL[] pluginUrls = pluginJars(pluginBundle).stream()
+                        .map(PoleJavaAgent::toUrl)
+                        .toArray(URL[]::new);
+                if (pluginUrls.length == 0) {
+                    throw new IllegalStateException("Pole Java Agent plugin bundle is empty: " + pluginBundle);
+                }
+                PluginClassLoader loader = new PluginClassLoader(pluginUrls, PoleAgentPlugin.class.getClassLoader());
                 PLUGIN_CLASS_LOADERS.add(loader);
                 ServiceLoader.load(PoleAgentPlugin.class, loader)
-                        .forEach(plugin -> plugins.add(new DiscoveredPlugin(plugin, pluginJar.toUri())));
+                        .forEach(plugin -> plugins.add(new DiscoveredPlugin(plugin, pluginBundle.toUri())));
             }
             return plugins;
         } catch (Exception exception) {
             throw new IllegalStateException("Pole Java Agent plugins failed to load from: " + pluginDirectory, exception);
+        }
+    }
+
+    private static boolean isPluginBundle(Path path) {
+        return Files.isDirectory(path) || path.getFileName().toString().endsWith(".jar");
+    }
+
+    private static List<Path> pluginJars(Path pluginBundle) throws java.io.IOException {
+        if (Files.isRegularFile(pluginBundle)) {
+            return List.of(pluginBundle);
+        }
+        try (var files = Files.list(pluginBundle)) {
+            return files.filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".jar"))
+                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                    .toList();
+        }
+    }
+
+    private static URL toUrl(Path path) {
+        try {
+            return path.toUri().toURL();
+        } catch (Exception exception) {
+            throw new IllegalStateException("invalid Pole Java Agent plugin path: " + path, exception);
         }
     }
 
@@ -90,8 +119,8 @@ public final class PoleJavaAgent {
                 "io.github.latticehub.agent.api.",
                 "io.github.latticehub.agent.bootstrap.");
 
-        private PluginClassLoader(URL pluginJar, ClassLoader parent) {
-            super(new URL[]{pluginJar}, parent);
+        private PluginClassLoader(URL[] pluginJars, ClassLoader parent) {
+            super(pluginJars, parent);
         }
 
         @Override

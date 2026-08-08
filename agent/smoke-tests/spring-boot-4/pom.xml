@@ -9,6 +9,7 @@
     <properties><spring.boot.test.version>${spring.boot4.version}</spring.boot.test.version></properties>
     <dependencies>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter</artifactId><version>${spring.boot.test.version}</version><scope>test</scope></dependency>
+        <dependency><groupId>org.springframework.cloud</groupId><artifactId>spring-cloud-commons</artifactId><version>${spring.cloud4.version}</version><scope>test</scope></dependency>
     </dependencies>
     <build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration><argLine>-javaagent:${project.build.directory}/agent/pole-java-agent/pole-java-agent.jar</argLine></configuration></plugin></plugins></build>
 </project>

@@ -41,6 +41,9 @@
                 <artifactId>pole-spring-cloud-boot-4</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-dubbo-3x</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-grpc-1x</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>pole-thrift-http</artifactId><version>${project.version}</version></dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>pole-java-agent</artifactId>
@@ -61,11 +64,13 @@
                 <artifactId>pole-agent-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>pole-agent-plugin-spring-cloud</artifactId>
-                <version>${project.version}</version>
-            </dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>spring-cloud-plugin</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>spring-cloud-3x-plugin</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>spring-cloud-4x-plugin</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>spring-cloud-5x-plugin</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>dubbo-3x-plugin</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>grpc-1x-plugin</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>${project.groupId}</groupId><artifactId>thrift-http-plugin</artifactId><version>${project.version}</version></dependency>
         </dependencies>
     </dependencyManagement>
 </project>

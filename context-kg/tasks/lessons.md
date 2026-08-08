@@ -16,3 +16,6 @@
 - Agent Maven module 拆分不等于运行时隔离；不能再把 API、core、所有插件和 adapter payload
   shade 成一个大 JAR。应参考成熟 Agent 的目录化分发：薄 bootstrap JAR、独立 `lib/`、独立
   `plugins/`，并让每个插件拥有自己的 ClassLoader 与自包含依赖。
+- Spring Cloud Agent 不能只按 Boot 2/3/4 放一个聚合插件后就宣称覆盖多个 Cloud 版本；应在
+  `plugins/spring-cloud-plugins` 插件族内拆分 3x/4x/5x provider，由单一入口按 Boot major
+  初筛并结合 Spring Cloud 版本/API 校验后选择，且每个受支持 release train 都要有测试证据。

@@ -19,7 +19,13 @@ RUN set -eux; \
     jar xf "$archive"; \
     test -s /out/pole-java-agent/pole-java-agent.jar; \
     test -n "$(find /out/pole-java-agent/lib -name 'pole-agent-core-*.jar' -print -quit)"; \
-    test -n "$(find /out/pole-java-agent/plugins -name 'pole-agent-plugin-spring-cloud-*.jar' -print -quit)"
+    test -n "$(find /out/pole-java-agent/plugins/spring-cloud-plugins -name 'spring-cloud-plugin-*.jar' -print -quit)"; \
+    test -n "$(find /out/pole-java-agent/plugins/spring-cloud-plugins -name 'spring-cloud-3x-plugin-*.jar' -print -quit)"; \
+    test -n "$(find /out/pole-java-agent/plugins/spring-cloud-plugins -name 'spring-cloud-4x-plugin-*.jar' -print -quit)"; \
+    test -n "$(find /out/pole-java-agent/plugins/spring-cloud-plugins -name 'spring-cloud-5x-plugin-*.jar' -print -quit)"; \
+    test -n "$(find /out/pole-java-agent/plugins/dubbo-plugins -name 'dubbo-3x-plugin-*.jar' -print -quit)"; \
+    test -n "$(find /out/pole-java-agent/plugins/grpc-plugins -name 'grpc-1x-plugin-*.jar' -print -quit)"; \
+    test -n "$(find /out/pole-java-agent/plugins/thrift-plugins -name 'thrift-http-plugin-*.jar' -print -quit)"
 
 FROM --platform=$TARGETPLATFORM ${RUNTIME_IMAGE}
 
