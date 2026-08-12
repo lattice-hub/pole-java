@@ -36,6 +36,8 @@
 
 ### Review
 
+- TrafficContext v1 的正式来源已闭合为 Specification `develop` 提交
+  `67b101bb6e3906b4337affefd33ef778cec692b3`；vendored 四项资产与该提交逐字一致。
 - 已实现 `TrafficContext`、W3C Baggage codec、`ThreadLocal` scope 和反射式 optional
   OTel Context/Baggage bridge；标准 W3C Baggage Propagator 可发送四个保留成员，领域值缺失时
   会从合法 OTel Baggage 恢复；`TargetServiceMetadata` 在同一装配点注入 target 与 baggage。
